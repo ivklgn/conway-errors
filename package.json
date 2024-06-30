@@ -1,0 +1,44 @@
+{
+  "name": "conway-errors",
+  "source": "index.ts",
+  "version": "0.0.1",
+  "private": false,
+  "description": "Create errors with Conway law",
+  "exports": {
+    "types": "./dist/index.d.ts",
+    "require": "./dist/index.js",
+    "default": "./dist/index.module.js"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.module.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "scripts": {
+    "type-check": "tsc --noEmit --p tsconfig.build.json",
+    "build": "npm run clean && microbundle",
+    "test": "ts-node index.test.ts",
+    "lint": "biome lint ./index.ts ./index.test.ts",
+    "format": "biome format --write ./index.ts ./index.test.ts",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run lint && npm run test && npm run build"
+  },
+  "files": [
+    "/dist",
+    "/package.json"
+  ],
+  "keywords": [],
+  "author": "Kalagin Ivan",
+  "license": "MIT",
+  "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "@types/node": "^20.14.9",
+    "microbundle": "^0.15.1",
+    "rimraf": "^5.0.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2",
+    "uvu": "^0.5.6"
+  },
+  "engines": {
+    "npm": ">=8.0.0"
+  }
+}
