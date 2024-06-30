@@ -33,7 +33,7 @@ const defaultErrorOptions: CreateErrorOptions = {
   throwFn: throwFn,
 };
 
-export function createError(errorTypes: string[] = [], options?: CreateErrorOptions) {
+export function createError<ErrorType extends string>(errorTypes: ErrorType[] = [], options?: CreateErrorOptions) {
   const _options = { ...defaultErrorOptions, ...options };
 
   // TODO: contextOptions using
@@ -58,10 +58,10 @@ export function createError(errorTypes: string[] = [], options?: CreateErrorOpti
 
     function _createErrorFeature(featureName: string, contextName: string) {
       return {
-        throw: function (errorName: string, message: string) {
+        throw: function (errorType: ErrorType, message: string) {
           // TODO:
           // @ts-ignore
-          const error = new (errorsMap[errorName] ?? UnknownError)(
+          const error = new (errorsMap[errorType] ?? UnknownError)(
             createContextedMessage(contextName, featureName, message)
           );
           _options.throwFn!(error);
