@@ -3,7 +3,7 @@
   "source": "index.ts",
   "version": "0.0.1",
   "private": false,
-  "description": "Create errors with Conway law",
+  "description": "Create errors with Conway's law",
   "exports": {
     "types": "./dist/index.d.ts",
     "require": "./dist/index.js",
