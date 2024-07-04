@@ -18,7 +18,10 @@
 import createError from "conway-errors"; // (!!!) at this moment not published
 
 // (1) init error types 
-const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"]);
+const createErrorContext = createError([
+  { errorType: "FrontendLogickError" },
+  { errorType: "BackendLogickError" },
+] as const);
 
 // (2) create contexts (per team or area)
 const errorAuthTeamContext = createErrorContext("AuthTeamContext");
@@ -39,7 +42,10 @@ paymentError.throw("BackendLogickError", "Payment already processed"); // node.j
 import createError from "conway-errors"; // (!!!) at this moment not published
 
 // (1) init error types 
-const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"]);
+const createErrorContext = createError([
+  { errorType: "FrontendLogickError" },
+  { errorType: "BackendLogickError" },
+] as const);
 
 // (2) create context 
 const authTeamErrorContext = createErrorContext("AuthTeamContext");
@@ -72,3 +78,24 @@ const createErrorContext = createError(["FrontendLogickError", "BackendLogickErr
 
 this code will throw error to sentry, but not throw global error
 
+### Provide your custom message postfix
+
+```ts
+import createError from "conway-errors"; // (!!!) at this moment not published
+
+const createErrorContext = createError([
+  { errorType: "FrontendLogickError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+  { errorType: "BackendLogickError" },
+] as const);
+
+const context = createErrorContext("Context");
+const feature = subcontext.feature("Feature");
+
+try {
+  // some business logick throwing error with message "Server upload avatar failed"
+  uploadAvatar();
+} catch (err) {
+  feature.throw("FrontendLogickError", "Failed upload avatar", err);
+  // will throw FrontendLogickError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
+}
+```

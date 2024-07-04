@@ -33,22 +33,42 @@ const defaultErrorOptions: CreateErrorOptions = {
   throwFn: throwFn,
 };
 
-export function createError<ErrorType extends string>(errorTypes: ErrorType[] = [], options?: CreateErrorOptions) {
+type ExtractTypeFieldFromArrayOfObjects<T> = T extends { type: infer U } ? U : T;
+type ErrorTypeConfig = Readonly<
+  Readonly<{ errorType: string; createMessagePostfix?: (originalError?: Error) => string }>[]
+>;
+
+type ErrorMap = {
+  [key: string]: {
+    errorClass: ReturnType<typeof createErrorClass>;
+    createMessagePostfix?: (originalError?: Error) => string;
+  };
+};
+
+export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: ErrorTypes, options?: CreateErrorOptions) {
   const _options = { ...defaultErrorOptions, ...options };
 
   // TODO: contextOptions using
   return function createErrorContext(contextName: string, contextOptions: { projectName?: string } = {}) {
-    const errorsMap = errorTypes.reduce<{ [key: string]: typeof BaseError }>((acc, errorType) => {
-      acc[errorType] = _options.createErrorClass!(errorType, contextName);
-      return acc;
-    }, {});
+    const errorsMap = Array.isArray(errorTypes)
+      ? errorTypes.reduce<ErrorMap>((acc, errorConfig) => {
+          acc[errorConfig.errorType] = {
+            errorClass: _options.createErrorClass!(errorConfig.errorType, contextName),
+            ...(errorConfig.createMessagePostfix ? { createMessagePostfix: errorConfig.createMessagePostfix } : {}),
+          };
+
+          return acc;
+        }, {})
+      : {};
 
     const UnknownError = _options.createErrorClass!("UnknownError", contextName);
 
     function _createErrorContext(_contextName: string, options: { projectName?: string } = {}) {
       return {
         context: function (childContextName: string, childProjectName: string) {
-          return _createErrorContext(`${_contextName}/${childContextName}`, { projectName: childProjectName });
+          return _createErrorContext(`${_contextName}/${childContextName}`, {
+            projectName: childProjectName,
+          });
         },
         feature: function (childFeatureName: string) {
           return _createErrorFeature(childFeatureName, _contextName);
@@ -58,17 +78,25 @@ export function createError<ErrorType extends string>(errorTypes: ErrorType[] = 
 
     function _createErrorFeature(featureName: string, contextName: string) {
       return {
-        throw: function (errorType: ErrorType, message: string) {
-          // TODO:
-          // @ts-ignore
-          const error = new (errorsMap[errorType] ?? UnknownError)(
-            createContextedMessage(contextName, featureName, message)
+        throw: function (
+          errorType: ExtractTypeFieldFromArrayOfObjects<ErrorTypes[number]>["errorType"],
+          message: string,
+          originalError?: Error
+        ) {
+          const errorMapItem = errorsMap[errorType];
+          const messagePostfix =
+            originalError && errorMapItem?.createMessagePostfix ? errorMapItem.createMessagePostfix(originalError) : "";
+
+          const error = new (errorMapItem?.errorClass ?? UnknownError)(
+            createContextedMessage(contextName, featureName, message + messagePostfix)
           );
           _options.throwFn!(error);
         },
       };
     }
 
-    return _createErrorContext(contextName, { projectName: contextOptions.projectName });
+    return _createErrorContext(contextName, {
+      projectName: contextOptions.projectName,
+    });
   };
 }

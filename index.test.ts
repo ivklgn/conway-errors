@@ -17,7 +17,7 @@ test("without error types will throw always UnknownError", () => {
 });
 
 test("error types throw always mapped errors", () => {
-  const createErrorContext = createError(["ErrorType1", "ErrorType2"]);
+  const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const);
   const errorContext = createErrorContext("Context");
   const feature = errorContext.feature("Feature");
 
@@ -37,7 +37,7 @@ test("error types throw always mapped errors", () => {
 });
 
 test("nested context write correct message", () => {
-  const createErrorContext = createError(["ErrorType1", "ErrorType2"]);
+  const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const);
 
   const context = createErrorContext("Context");
   const subcontext1 = context.context("Subcontext1", "ProjectName");
@@ -70,7 +70,7 @@ test("custom throw function should override default throw", () => {
 
   assert.equal(mockedError, undefined);
 
-  const createErrorContext = createError(["ErrorType1", "ErrorType2"], {
+  const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
     throwFn: (err) => {
       mockedError = err;
     },
@@ -84,11 +84,37 @@ test("custom throw function should override default throw", () => {
   });
 
   // TODO: create normal mocks
-
   // @ts-ignore
   assert.equal(mockedError?.name, "ErrorType1");
   // @ts-ignore
   assert.equal(mockedError?.message, "Context/Feature: ErrorMessage");
+});
+
+test("createMessagePostfix add message if originalError provided", () => {
+  const createErrorContext = createError([
+    { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+    { errorType: "ErrorType2", createMessagePostfix: () => " some additional info" },
+  ] as const);
+
+  const context = createErrorContext("Context");
+  const subcontext = context.context("Subcontext1", "ProjectName");
+
+  const feature = subcontext.feature("Feature");
+  const originalError = new Error("OriginalError");
+
+  try {
+    feature.throw("ErrorType1", "ErrorMessage", originalError);
+  } catch (err: any) {
+    assert.is(err.name, "ErrorType1");
+    assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage >>> OriginalError");
+  }
+
+  try {
+    feature.throw("ErrorType2", "ErrorMessage", originalError);
+  } catch (err: any) {
+    assert.is(err.name, "ErrorType2");
+    assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage some additional info");
+  }
 });
 
 test.run();
