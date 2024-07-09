@@ -99,3 +99,46 @@ try {
   // will throw FrontendLogickError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
 ```
+
+### Provide custom context with
+
+For example you can provide custom createContext callback in createError, context creator, subcontext and features:
+
+```ts
+import createError from "conway-errors"; // (!!!) at this moment not published
+import * as Sentry from "@sentry/nextjs";
+
+const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"], {
+  createContext: () => ({
+    isSSR: typeof window === "undefined",
+    projectName: "My cool frontend"
+  }),
+  throwFn: (err, context) => {
+    const { isSSR, projectName, logLevel = "error", location, subdomain } = context;
+
+    Sentry.withScope(scope => {
+      scope.setTags({
+        isSSR,
+        projectName,
+        subdomain,
+        location,
+      });
+      
+
+      scope.setLevel(logLevel);
+      Sentry.captureException(err);
+    });
+  },
+});
+
+
+const paymentErrorContext = createErrorContext("Payment", () => ({
+  subdomain: "Payment",
+}));
+
+const cardPaymentError = subcontext.feature("Cardpayment", () => ({
+  location: "USA",
+}));
+
+cardPaymentError.throw("BackendLogickError", "Payment failed", { context: { logLevel: "fatal" } });
+```

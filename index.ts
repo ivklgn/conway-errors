@@ -93,7 +93,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         throw: function (
           errorType: ExtractTypeFieldFromArrayOfObjects<ErrorTypes[number]>["errorType"],
           message: string,
-          options: { originalError?: Error } = {}
+          options: { originalError?: Error; context?: Context } = {}
         ) {
           const errorMapItem = errorsMap[errorType];
           const messagePostfix =
@@ -104,7 +104,9 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
           const error = new (errorMapItem?.errorClass ?? UnknownError)(
             createContextedMessage(contextName, featureName, message + messagePostfix)
           );
-          _options.throwFn!(error, featureContext);
+
+          const errorContext = mergeContext(featureContext ?? {}, options?.context ?? {});
+          _options.throwFn!(error, errorContext);
         },
       };
     }

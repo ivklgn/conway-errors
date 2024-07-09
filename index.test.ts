@@ -183,6 +183,20 @@ test("createContext provide context from createError to feature and available in
       ctxD: 4,
     }
   );
+
+  feature2.throw("ErrorType1", "ErrorMessage", { context: { ctxE: 5 } });
+
+  assert.equal(
+    // @ts-ignore
+    mockedThrow.calls[2].arguments[1],
+    {
+      ctxA: 100,
+      ctxB: 1000,
+      ctxC: 3,
+      ctxD: 4,
+      ctxE: 5,
+    }
+  );
 });
 
 test.run();
