@@ -24,12 +24,10 @@ function throwFn(err: unknown) {
 }
 
 interface CreateErrorOptions {
-  createErrorClass?: typeof createErrorClass;
   throwFn?: (err: Error) => void;
 }
 
 const defaultErrorOptions: CreateErrorOptions = {
-  createErrorClass: createErrorClass,
   throwFn: throwFn,
 };
 
@@ -49,11 +47,11 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
   const _options = { ...defaultErrorOptions, ...options };
 
   // TODO: contextOptions using
-  return function createErrorContext(contextName: string, contextOptions: { projectName?: string } = {}) {
+  return function createErrorContext(contextName: string, context: { projectName?: string } = {}) {
     const errorsMap = Array.isArray(errorTypes)
       ? errorTypes.reduce<ErrorMap>((acc, errorConfig) => {
           acc[errorConfig.errorType] = {
-            errorClass: _options.createErrorClass!(errorConfig.errorType, contextName),
+            errorClass: createErrorClass!(errorConfig.errorType, contextName),
             ...(errorConfig.createMessagePostfix ? { createMessagePostfix: errorConfig.createMessagePostfix } : {}),
           };
 
@@ -61,7 +59,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         }, {})
       : {};
 
-    const UnknownError = _options.createErrorClass!("UnknownError", contextName);
+    const UnknownError = createErrorClass!("UnknownError", contextName);
 
     function _createErrorContext(_contextName: string, options: { projectName?: string } = {}) {
       return {
@@ -96,7 +94,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
     }
 
     return _createErrorContext(contextName, {
-      projectName: contextOptions.projectName,
+      projectName: context.projectName,
     });
   };
 }
