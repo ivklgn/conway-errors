@@ -100,7 +100,7 @@ try {
 }
 ```
 
-### Provide custom context with
+### Provide custom context with callback
 
 For example you can provide custom createContext callback in createError, context creator, subcontext and features:
 
