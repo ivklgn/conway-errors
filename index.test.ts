@@ -126,25 +126,25 @@ test("createContext provide context from createError to feature and available in
   const mockedThrow = snoop((err, context) => {});
 
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
-    createContext: () => ({
+    extendedParams: {
       ctxA: 1,
-    }),
-    throwFn: (err, context) => {
-      mockedThrow.fn(err, context);
+    },
+    throwFn: (err, extendedParams) => {
+      mockedThrow.fn(err, extendedParams);
     },
   });
 
-  const context = createErrorContext("Context", () => ({
+  const context = createErrorContext("Context", {
     ctxB: 2,
-  }));
+  });
 
-  const subcontext1 = context.context("Subcontext1", () => ({
+  const subcontext1 = context.context("Subcontext1", {
     ctxC: 3,
-  }));
+  });
 
-  const feature1 = subcontext1.feature("Feature1", () => ({
+  const feature1 = subcontext1.feature("Feature1", {
     ctxD: 4,
-  }));
+  });
 
   feature1.throw("ErrorType1", "ErrorMessage");
 
@@ -161,15 +161,15 @@ test("createContext provide context from createError to feature and available in
 
   // rewrite context
 
-  const subcontext2 = context.context("Subcontext2", () => ({
+  const subcontext2 = context.context("Subcontext2", {
     ctxA: 100,
     ctxC: 3,
-  }));
+  });
 
-  const feature2 = subcontext2.feature("Feature2", () => ({
+  const feature2 = subcontext2.feature("Feature2", {
     ctxB: 1000,
     ctxD: 4,
-  }));
+  });
 
   feature2.throw("ErrorType1", "ErrorMessage");
 
@@ -184,7 +184,7 @@ test("createContext provide context from createError to feature and available in
     }
   );
 
-  feature2.throw("ErrorType1", "ErrorMessage", { context: { ctxE: 5 } });
+  feature2.throw("ErrorType1", "ErrorMessage", { extendedParams: { ctxE: 5 } });
 
   assert.equal(
     // @ts-ignore

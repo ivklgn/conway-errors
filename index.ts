@@ -23,24 +23,16 @@ function throwFn(err: unknown) {
   throw err;
 }
 
-type Context = Record<string, unknown>;
-
-type CreateContextFn = (context?: Context) => Context;
+type ExtendedParams = Record<string, unknown>;
 
 interface CreateErrorOptions {
-  throwFn?: (err: Error, context?: Context) => void;
-  createContext?: CreateContextFn;
-}
-
-const noop = () => {};
-
-function mergeContext(context1: Context, context2: Context) {
-  return { ...context1, ...context2 };
+  throwFn?: (err: Error, extendedParams?: ExtendedParams) => void;
+  extendedParams?: ExtendedParams;
 }
 
 const defaultErrorOptions: CreateErrorOptions = {
   throwFn: throwFn,
-  createContext: noop as CreateContextFn,
+  extendedParams: {},
 };
 
 type ExtractTypeFieldFromArrayOfObjects<T> = T extends { type: infer U } ? U : T;
@@ -57,10 +49,10 @@ type ErrorMap = {
 
 export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: ErrorTypes, options?: CreateErrorOptions) {
   const _options = { ...defaultErrorOptions, ...options };
-  const initialContext = options?.createContext?.() ?? {};
+  const initialExtendedParams = options?.extendedParams ?? {};
 
-  return function (contextName: string, createContext?: CreateErrorOptions["createContext"]) {
-    const outerErrorContext = mergeContext(initialContext, createContext?.() ?? {});
+  return function (contextName: string, extendedParams?: CreateErrorOptions["extendedParams"]) {
+    const outerExtendedParams = { ...initialExtendedParams, ...(extendedParams ?? {}) };
 
     const errorsMap = Array.isArray(errorTypes)
       ? errorTypes.reduce<ErrorMap>((acc, errorConfig) => {
@@ -75,25 +67,29 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
 
     const UnknownError = createErrorClass!("UnknownError", contextName);
 
-    function _createErrorContext(_contextName: string, subContext: Context = outerErrorContext) {
+    function _createErrorContext(_contextName: string, subContextExtendedParams: ExtendedParams = outerExtendedParams) {
       return {
-        context: function (childContextName: string, createContext?: CreateErrorOptions["createContext"]) {
-          const subErrorContext = mergeContext(subContext, createContext?.() ?? {});
+        context: function (childContextName: string, extendedParams?: CreateErrorOptions["extendedParams"]) {
+          const subErrorContext = { ...subContextExtendedParams, ...(extendedParams ?? {}) };
           return _createErrorContext(`${_contextName}/${childContextName}`, subErrorContext);
         },
-        feature: function (childFeatureName: string, createContext?: CreateErrorOptions["createContext"]) {
-          const featureErrorContext = mergeContext(subContext, createContext?.() ?? {});
+        feature: function (childFeatureName: string, extendedParams?: CreateErrorOptions["extendedParams"]) {
+          const featureErrorContext = { ...subContextExtendedParams, ...(extendedParams ?? {}) };
           return _createErrorFeature(childFeatureName, _contextName, featureErrorContext);
         },
       };
     }
 
-    function _createErrorFeature(featureName: string, contextName: string, featureContext?: Context) {
+    function _createErrorFeature(
+      featureName: string,
+      contextName: string,
+      featureContextExtendedParams?: ExtendedParams
+    ) {
       return {
         throw: function (
           errorType: ExtractTypeFieldFromArrayOfObjects<ErrorTypes[number]>["errorType"],
           message: string,
-          options: { originalError?: Error; context?: Context } = {}
+          options: { originalError?: Error; extendedParams?: ExtendedParams } = {}
         ) {
           const errorMapItem = errorsMap[errorType];
           const messagePostfix =
@@ -105,8 +101,8 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
             createContextedMessage(contextName, featureName, message + messagePostfix)
           );
 
-          const errorContext = mergeContext(featureContext ?? {}, options?.context ?? {});
-          _options.throwFn!(error, errorContext);
+          const _extendedParams = { ...(featureContextExtendedParams ?? {}), ...(options?.extendedParams ?? {}) };
+          _options.throwFn!(error, _extendedParams);
         },
       };
     }

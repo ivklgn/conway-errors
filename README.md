@@ -109,12 +109,12 @@ import createError from "conway-errors"; // (!!!) at this moment not published
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"], {
-  createContext: () => ({
+  extendedParams: {
     isSSR: typeof window === "undefined",
     projectName: "My cool frontend"
-  }),
-  throwFn: (err, context) => {
-    const { isSSR, projectName, logLevel = "error", location, subdomain } = context;
+  },
+  throwFn: (err, extendedParams) => {
+    const { isSSR, projectName, logLevel = "error", location, subdomain } = extendedParams;
 
     Sentry.withScope(scope => {
       scope.setTags({
@@ -132,13 +132,13 @@ const createErrorContext = createError(["FrontendLogickError", "BackendLogickErr
 });
 
 
-const paymentErrorContext = createErrorContext("Payment", () => ({
+const paymentErrorContext = createErrorContext("Payment", {
   subdomain: "Payment",
-}));
+});
 
-const cardPaymentError = subcontext.feature("Cardpayment", () => ({
+const cardPaymentError = subcontext.feature("Cardpayment", {
   location: "USA",
-}));
+});
 
-cardPaymentError.throw("BackendLogickError", "Payment failed", { context: { logLevel: "fatal" } });
+cardPaymentError.throw("BackendLogickError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
 ```
