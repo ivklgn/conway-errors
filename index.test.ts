@@ -123,7 +123,7 @@ test("createMessagePostfix add message if originalError provided", () => {
 });
 
 test("createContext provide context from createError to feature and available in throwFn", () => {
-  const mockedThrow = snoop((err, context) => {});
+  const mockedThrow = snoop((err, extendedParams) => {});
 
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
     extendedParams: {
