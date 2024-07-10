@@ -60,7 +60,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
   const _options = { ...defaultErrorOptions, ...options };
   const initialExtendedParams = options?.extendedParams ?? {};
 
-  return function (contextName: string, extendedParams: ExtendedParams = {}) {
+  return (contextName: string, extendedParams: ExtendedParams = {}) => {
     const outerExtendedParams = { ...initialExtendedParams, ...extendedParams };
 
     const errorsMap: ErrorMap = Array.isArray(errorTypes)
@@ -84,7 +84,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
          * @param {ExtendedParams} extendedParams - Additional extended parameters for the child context.
          * @return {Function} Function to create an error context with the specified child context name and extended params.
          */
-        context: function (childContextName: string, extendedParams: ExtendedParams = {}) {
+        context: (childContextName: string, extendedParams: ExtendedParams = {}) => {
           const subErrorContext = { ...subContextExtendedParams, ...extendedParams };
           return _createErrorContext(`${_contextName}/${childContextName}`, subErrorContext);
         },
@@ -95,7 +95,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
          * @param {ExtendedParams} [extendedParams={}] - Additional extended parameters for the child feature.
          * @return {Function} The created error feature.
          */
-        feature: function (childFeatureName: string, extendedParams: ExtendedParams = {}) {
+        feature: (childFeatureName: string, extendedParams: ExtendedParams = {}) => {
           const featureErrorContext = { ...subContextExtendedParams, ...extendedParams };
           return _createErrorFeature(childFeatureName, _contextName, featureErrorContext);
         },
@@ -118,11 +118,11 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
          * @param {ExtendedParams} [options.extendedParams] - Additional extended parameters for the error.
          * @return {void} This function does not return anything.
          */
-        throw: function (
+        throw: (
           errorType: ErrorTypes[number]["errorType"],
           message: string,
           options: { originalError?: Error; extendedParams?: ExtendedParams } = {}
-        ) {
+        ) => {
           const errorMapItem = errorsMap[errorType];
           const messagePostfix =
             options.originalError && errorMapItem?.createMessagePostfix
@@ -134,7 +134,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
           );
 
           const _extendedParams = { ...featureContextExtendedParams, ...options.extendedParams };
-          _options.throwFn!(error, _extendedParams);
+          _options.throwFn?.(error, _extendedParams);
         },
       };
     }

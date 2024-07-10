@@ -18,6 +18,7 @@
     "build": "npm run clean && microbundle",
     "test": "ts-node index.test.ts",
     "lint": "biome lint ./index.ts ./index.test.ts",
+    "lint:fix": "biome lint ./index.ts ./index.test.ts --fix",
     "format": "biome format --write ./index.ts ./index.test.ts",
     "clean": "rimraf dist",
     "prepublishOnly": "npm run lint && npm run test && npm run build"
