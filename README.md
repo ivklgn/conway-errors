@@ -15,7 +15,7 @@
 ### Basic usage
 
 ```ts
-import createError from "conway-errors"; // (!!!) at this moment not published
+import { createError } from "conway-errors"; 
 
 // (1) init error types 
 const createErrorContext = createError([
@@ -39,7 +39,7 @@ paymentError.throw("BackendLogickError", "Payment already processed"); // node.j
 ### Nested context (subcontext)
 
 ```ts
-import createError from "conway-errors"; // (!!!) at this moment not published
+import { createError } from "conway-errors"; 
 
 // (1) init error types 
 const createErrorContext = createError([
@@ -51,8 +51,8 @@ const createErrorContext = createError([
 const authTeamErrorContext = createErrorContext("AuthTeamContext");
 
 // (3) create subcontext for authTeamErrorContext
-const socialAuthErrorContext = createErrorContext.context("SocialAuth");
-const phoneAuthErrorContext = createErrorContext.context("PhoneAuth");
+const socialAuthErrorContext = createErrorContext.subcontext("SocialAuth");
+const phoneAuthErrorContext = createErrorContext.subcontext("PhoneAuth");
 
 // (4) create features
 
@@ -66,10 +66,13 @@ smsSendError.throw("BackendLogickError", "Limit exceed");
 ### Overload throwing (Sentry example)
 
 ```ts
-import createError from "conway-errors"; // (!!!) at this moment not published
+import { createError } from "conway-errors"; 
 import * as Sentry from "@sentry/nextjs";
 
-const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"], {
+const createErrorContext = createError([
+  { errorType: "FrontendLogickError" },
+  { errorType: "BackendLogickError" }
+] as const, {
   throwFn: (err) => { // overload throwing behavior
     Sentry.captureException(err);
   },
@@ -81,7 +84,7 @@ this code will throw error to sentry, but not throw global error
 ### Provide your custom message postfix
 
 ```ts
-import createError from "conway-errors"; // (!!!) at this moment not published
+import { createError } from "conway-errors"; 
 
 const createErrorContext = createError([
   { errorType: "FrontendLogickError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
@@ -105,7 +108,7 @@ try {
 For example you can provide custom createContext callback in createError, context creator, subcontext and features:
 
 ```ts
-import createError from "conway-errors"; // (!!!) at this moment not published
+import { createError } from "conway-errors"; 
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"], {

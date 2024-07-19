@@ -49,6 +49,22 @@ type ErrorMap = Record<
   }
 >;
 
+type FeatureFn = (
+  featureName: string,
+  featureContextExtendedParams?: ExtendedParams
+) => {
+  throw: (
+    errorType: ErrorTypeConfig[number]["errorType"],
+    message: string,
+    options?: { originalError?: Error; extendedParams?: ExtendedParams }
+  ) => void;
+};
+
+type ErrorSubcontext = {
+  subcontext: (subcontextName: string, extendedParams?: ExtendedParams) => ErrorSubcontext;
+  feature: FeatureFn;
+};
+
 /**
  * Function to create an error context with specified error types and options.
  *
@@ -75,7 +91,17 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
 
     const UnknownError = createErrorClass("UnknownError", contextName);
 
-    function _createErrorContext(_contextName: string, subContextExtendedParams: ExtendedParams = outerExtendedParams) {
+    const _createSubcontext =
+      (contextName: string, subContextExtendedParams: ExtendedParams) =>
+      (childContextName: string, extendedParams: ExtendedParams = {}) => {
+        const subErrorContext = { ...subContextExtendedParams, ...extendedParams };
+        return _createErrorContext(`${contextName}/${childContextName}`, subErrorContext);
+      };
+
+    function _createErrorContext(
+      _contextName: string,
+      subContextExtendedParams: ExtendedParams = outerExtendedParams
+    ): ErrorSubcontext {
       return {
         /**
          * Create a child context within the current context.
@@ -84,10 +110,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
          * @param {ExtendedParams} extendedParams - Additional extended parameters for the child context.
          * @return {Function} Function to create an error context with the specified child context name and extended params.
          */
-        context: (childContextName: string, extendedParams: ExtendedParams = {}) => {
-          const subErrorContext = { ...subContextExtendedParams, ...extendedParams };
-          return _createErrorContext(`${_contextName}/${childContextName}`, subErrorContext);
-        },
+        subcontext: _createSubcontext(_contextName, subContextExtendedParams),
         /**
          * Creates a child feature within the current context.
          *

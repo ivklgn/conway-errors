@@ -41,8 +41,8 @@ test("nested context write correct message", () => {
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const);
 
   const context = createErrorContext("Context");
-  const subcontext1 = context.context("Subcontext1");
-  const subcontext2 = subcontext1.context("Subcontext2");
+  const subcontext1 = context.subcontext("Subcontext1");
+  const subcontext2 = subcontext1.subcontext("Subcontext2");
 
   const feature1 = subcontext2.feature("Feature 1");
 
@@ -53,8 +53,8 @@ test("nested context write correct message", () => {
     assert.is(err.message, "Context/Subcontext1/Subcontext2/Feature 1: ErrorMessage");
   }
 
-  const subcontext3 = subcontext2.context("Subcontext3");
-  const subcontext4 = subcontext3.context("Subcontext4");
+  const subcontext3 = subcontext2.subcontext("Subcontext3");
+  const subcontext4 = subcontext3.subcontext("Subcontext4");
 
   const feature2 = subcontext4.feature("Feature 2");
 
@@ -102,7 +102,7 @@ test("createMessagePostfix add message if originalError provided", () => {
   ] as const);
 
   const context = createErrorContext("Context");
-  const subcontext = context.context("Subcontext1");
+  const subcontext = context.subcontext("Subcontext1");
 
   const feature = subcontext.feature("Feature");
   const originalError = new Error("OriginalError");
@@ -138,7 +138,7 @@ test("createContext provide context from createError to feature and available in
     ctxB: 2,
   });
 
-  const subcontext1 = context.context("Subcontext1", {
+  const subcontext1 = context.subcontext("Subcontext1", {
     ctxC: 3,
   });
 
@@ -161,7 +161,7 @@ test("createContext provide context from createError to feature and available in
 
   // rewrite context
 
-  const subcontext2 = context.context("Subcontext2", {
+  const subcontext2 = context.subcontext("Subcontext2", {
     ctxA: 100,
     ctxC: 3,
   });
