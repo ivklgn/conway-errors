@@ -49,20 +49,22 @@ type ErrorMap = Record<
   }
 >;
 
-type FeatureFn = (
+type ThrowFn<ErrorType extends string> = (
+  errorType: ErrorType,
+  message: string,
+  options?: { originalError?: Error; extendedParams?: ExtendedParams }
+) => void;
+
+type FeatureFn<ErrorType extends string> = (
   featureName: string,
   featureContextExtendedParams?: ExtendedParams
 ) => {
-  throw: (
-    errorType: ErrorTypeConfig[number]["errorType"],
-    message: string,
-    options?: { originalError?: Error; extendedParams?: ExtendedParams }
-  ) => void;
+  throw: ThrowFn<ErrorType>;
 };
 
-type ErrorSubcontext = {
-  subcontext: (subcontextName: string, extendedParams?: ExtendedParams) => ErrorSubcontext;
-  feature: FeatureFn;
+type ErrorSubcontext<ErrorType extends string> = {
+  subcontext: (subcontextName: string, extendedParams?: ExtendedParams) => ErrorSubcontext<ErrorType>;
+  feature: FeatureFn<ErrorType>;
 };
 
 /**
@@ -101,7 +103,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
     function _createErrorContext(
       _contextName: string,
       subContextExtendedParams: ExtendedParams = outerExtendedParams
-    ): ErrorSubcontext {
+    ): ErrorSubcontext<ErrorTypes[number]["errorType"]> {
       return {
         /**
          * Create a child context within the current context.

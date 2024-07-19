@@ -1,7 +1,7 @@
 {
   "name": "conway-errors",
   "source": "index.ts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "Create errors with Conway's law",
   "exports": {
