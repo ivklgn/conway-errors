@@ -1,65 +1,65 @@
 # conway-errors
 
-The library allows you to create an error hierarchy with minimal API usage without explicit class inheritance.
+Библиотека позволяет с помощью минимального API создать иерархию ошибок без использования явного наследования классов.
 
-[Go to russian documentation](README_RU.md)
+[Go to english documentation](README.md)
 
-## Usage
+## Использование
 
-### Simple Example
+### Простой пример
 
 ```ts
 import { createError } from "conway-errors"; 
 
-// (1) Create the root context, where the base error types are defined
+// (1) создаем корневой контекст, где определяются базовые типы ошибок
 const createErrorContext = createError([
   { errorType: "FrontendLogickError" },
   { errorType: "BackendLogickError" },
 ] as const);
 
-// (2) Create any number of contexts, for example, divided by team or context
+// (2) создаем любое количество контекстов, например разделяем по команде или контексту
 const errorAuthTeamContext = createErrorContext("AuthTeamContext");
 const errorPaymentTeamContext = createErrorContext("PaymentTeamContext");
 
-// (3) Define specific implementations based on features
+// (3) определяем конкретные реализации на базе функционала (features)
 const oauthError = errorAuthTeamContext.feature("OauthError");
 const paymentError = errorPaymentTeamContext.feature("PaymentError");
 
-// (4) Example of throwing errors
+// (4) пример выброса ошибок
 oauthError.throw("FrontendLogickError", "User not found");
 paymentError.throw("BackendLogickError", "Payment already processed");
 ```
 
-### Nested Contexts
+### Вложенные контексты
 
 ```ts
 import { createError } from "conway-errors"; 
 
-// (1) Create the root context, where the base error types are defined
+// (1) создаем корневой контекст, где определяются базовые типы ошибок
 const createErrorContext = createError([
   { errorType: "FrontendLogickError" },
   { errorType: "BackendLogickError" },
 ] as const);
 
-// (2) Create any number of contexts, for example, divided by team or context
+// (2) создаем любое количество контекстов, например разделяем по команде или контексту
 const authTeamErrorContext = createErrorContext("AuthTeamContext");
 
-// (3) Create any number of nested contexts
+// (3) создаем любое количество вложенных контекстов
 const socialAuthErrorContext = createErrorContext.subcontext("SocialAuth");
 const phoneAuthErrorContext = createErrorContext.subcontext("PhoneAuth");
 
-// (3) Define specific implementations based on features
+// (3) определяем конкретные реализации на базе функционала (features)
 const facebookError = socialAuthErrorContext.feature("FacebookAuth");
 const smsSendError = phoneAuthErrorContext.feature("SmsSender");
 
-// (4) Example of throwing errors
+// (4) пример выброса ошибок
 facebookError.throw("FrontendLogickError", "Account inactive");
 smsSendError.throw("BackendLogickError", "Limit exceed");
 ```
 
-### Overriding the Error Throwing Function
+### Переопределение функции выброса ошибки
 
-Example for integration with Sentry (<https://sentry.io/>)
+Пример для интеграции с Sentry (<https://sentry.io/>)
 
 ```ts
 import { createError } from "conway-errors"; 
@@ -76,9 +76,9 @@ const createErrorContext = createError([
 });
 ```
 
-This code will not throw an error globally.
+данны код не выбросит ошибку глобально
 
-### Extending Base Error Messages
+### Дополнение сообщения базовых ошибок
 
 ```ts
 import { createError } from "conway-errors"; 
@@ -95,12 +95,12 @@ try {
   uploadAvatar();
 } catch (err) {
   feature.throw("FrontendLogickError", "Failed upload avatar", err);
-  // The following error will be thrown:
+  // будет выброшена ошибка:
   // FrontendLogickError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
 ```
 
-### Passing Extended Parameters to Contexts and Errors
+### Передача расширяемых параметров в контексты и ошибки
 
 ```ts
 import { createError } from "conway-errors"; 
