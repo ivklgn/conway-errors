@@ -8,9 +8,9 @@ export interface IConwayError extends Error {
 }
 
 class ConwayError extends Error implements IConwayError {
-  rootContext: string;
-  contextsChunk: string;
-  originalError?: OriginalError;
+  readonly rootContext: string;
+  readonly contextsChunk: string;
+  readonly originalError?: OriginalError;
 
   constructor(
     name: string,
@@ -22,8 +22,8 @@ class ConwayError extends Error implements IConwayError {
     super(message);
     this.name = name;
     this.rootContext = rootContext;
-    this.originalError = originalError;
     this.contextsChunk = contextsChunk;
+    this.originalError = originalError;
   }
 }
 /**
