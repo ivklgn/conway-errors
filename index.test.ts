@@ -2,7 +2,7 @@ import { test } from "uvu";
 import { snoop } from "snoop";
 import * as assert from "uvu/assert";
 
-import { createError, type IConwayError } from "./index";
+import { createError, isConwayError, type IConwayError } from "./index";
 
 test("without error types will throw always UnknownError", () => {
   const createErrorContext = createError();
@@ -125,7 +125,7 @@ test("createMessagePostfix add message if originalError provided", () => {
   }
 });
 
-test("createContext provide context from createError to feature and available in emitAndThrow", () => {
+test("createContext provide context from createError to feature and available in emitting", () => {
   const mockedEmit = snoop((err, extendedParams) => {});
 
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
@@ -202,6 +202,24 @@ test("createContext provide context from createError to feature and available in
       ctxE: 5,
     },
   );
+});
+
+test("isConwayError type guard works correctly", () => {
+  assert.equal(isConwayError(null), false);
+  assert.equal(isConwayError("just string"), false);
+  assert.equal(isConwayError(0), false);
+
+  const nativeError = new Error("Native JS error");
+  assert.equal(isConwayError(nativeError), false);
+
+  const createErrorContext = createError();
+  const errorContext = createErrorContext("Context");
+  const feature = errorContext.feature("Feature");
+  try {
+    feature.throw("ErrorName", "ErrorMessage");
+  } catch (err: any) {
+    assert.equal(isConwayError(err), true);
+  }
 });
 
 test.run();

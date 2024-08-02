@@ -1,3 +1,6 @@
+/**
+ * Root interface for any specific error type.
+ */
 export interface IConwayError extends Error {
   rootContext: string;
   contextsChunk: string;
@@ -22,6 +25,14 @@ class ConwayError extends Error implements IConwayError {
     this.originalError = originalError;
     this.contextsChunk = contextsChunk;
   }
+}
+/**
+ * Type guard which helps to understand if error is Conway error.
+ * @param error
+ * @return {boolean}
+ */
+export function isConwayError(error: unknown): error is IConwayError {
+  return typeof error === "object" && error instanceof ConwayError;
 }
 
 function createErrorClass(name: string, rootContext: string) {
