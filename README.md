@@ -28,6 +28,17 @@ const paymentError = errorPaymentTeamContext.feature("PaymentError");
 // (4) Example of throwing errors
 oauthError.throw("FrontendLogickError", "User not found");
 paymentError.throw("BackendLogickError", "Payment already processed");
+
+// (5) Example of emitting thrown errors
+try {
+  oauthError.throw("FrontendLogickError", "User not found");
+}
+catch(error) {
+  oauthError.emitThrownError(error);
+}
+
+// (6) You also can emit error without throwing
+oauthError.emit("FrontendLogickError", "User not found");
 ```
 
 ### Nested Contexts
@@ -57,7 +68,7 @@ facebookError.throw("FrontendLogickError", "Account inactive");
 smsSendError.throw("BackendLogickError", "Limit exceed");
 ```
 
-### Overriding the Error Throwing Function
+### Overriding the Error Emitting Function
 
 Example for integration with Sentry (<https://sentry.io/>)
 
@@ -69,14 +80,12 @@ const createErrorContext = createError([
   { errorType: "FrontendLogickError" },
   { errorType: "BackendLogickError" }
 ] as const, {
-  // переопределяем поведение выброса ошибки
-  throwFn: (err) => {
+  // use sentry to log errors instead of default behavior with console.error()
+  emitFn: (err) => {
     Sentry.captureException(err);
   },
 });
 ```
-
-This code will not throw an error globally.
 
 ### Extending Base Error Messages
 
@@ -94,8 +103,8 @@ const feature = subcontext.feature("Feature");
 try {
   uploadAvatar();
 } catch (err) {
-  feature.throw("FrontendLogickError", "Failed upload avatar", err);
-  // The following error will be thrown:
+  feature.emit("FrontendLogickError", "Failed upload avatar", err);
+  // The following error will be emitted:
   // FrontendLogickError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
 ```
@@ -111,7 +120,7 @@ const createErrorContext = createError(["FrontendLogickError", "BackendLogickErr
     isSSR: typeof window === "undefined",
     projectName: "My cool frontend"
   },
-  throwFn: (err, extendedParams) => {
+  emitFn: (err, extendedParams) => {
     const { isSSR, projectName, logLevel = "error", location, subdomain } = extendedParams;
 
     Sentry.withScope(scope => {
@@ -128,7 +137,6 @@ const createErrorContext = createError(["FrontendLogickError", "BackendLogickErr
     });
   },
 });
-
 
 const paymentErrorContext = createErrorContext("Payment", {
   subdomain: "Payment",
