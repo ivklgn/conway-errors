@@ -1,17 +1,33 @@
-class BaseError extends Error {
-  context: string;
+export interface IConwayError extends Error {
+  rootContext: string;
+  contextsChunk: string;
+  originalError?: OriginalError;
+}
 
-  constructor(name: string, context: string, message: string) {
+class ConwayError extends Error implements IConwayError {
+  rootContext: string;
+  contextsChunk: string;
+  originalError?: OriginalError;
+
+  constructor(
+    name: string,
+    rootContext: string,
+    contextsChunk: string,
+    message: string,
+    originalError?: OriginalError,
+  ) {
     super(message);
     this.name = name;
-    this.context = context;
+    this.rootContext = rootContext;
+    this.originalError = originalError;
+    this.contextsChunk = contextsChunk;
   }
 }
 
-function createErrorClass(name: string, context: string) {
-  return class extends BaseError {
-    constructor(message: string) {
-      super(name, context, message);
+function createErrorClass(name: string, rootContext: string) {
+  return class extends ConwayError {
+    constructor(contextsChunk: string, message: string, originalError?: OriginalError) {
+      super(name, rootContext, contextsChunk, message, originalError);
     }
   };
 }
@@ -20,46 +36,82 @@ function createContextedMessage(contextPath: string, featureName: string, messag
   return `${contextPath}/${featureName}: ${message}`;
 }
 
-function throwFn(err: unknown) {
-  throw err;
+function defaultEmitFn(err: IConwayError) {
+  console.error(err);
 }
 
 type ExtendedParams = Record<string, unknown>;
 
+type OriginalError = Error | Record<string, unknown>;
+
 interface CreateErrorOptions {
-  throwFn?: (err: Error, extendedParams?: ExtendedParams) => void;
+  emitFn?: (err: IConwayError, extendedParams?: ExtendedParams) => void;
   extendedParams?: ExtendedParams;
 }
 
 const defaultErrorOptions: CreateErrorOptions = {
-  throwFn,
+  emitFn: defaultEmitFn,
   extendedParams: {},
 };
 
 type ErrorTypeConfig = ReadonlyArray<{
   errorType: string;
-  createMessagePostfix?: (originalError?: Error) => string;
+  createMessagePostfix?: (originalError?: OriginalError) => string;
 }>;
 
 type ErrorMap = Record<
   string,
   {
     errorClass: ReturnType<typeof createErrorClass>;
-    createMessagePostfix?: (originalError?: Error) => string;
+    createMessagePostfix?: (originalError?: OriginalError) => string;
   }
 >;
 
-type ThrowFn<ErrorType extends string> = (
+type ThrowFn<ErrorType extends string> = (errorType: ErrorType, message: string, originalError?: OriginalError) => void;
+
+type EmitFn<ErrorType extends string> = (
   errorType: ErrorType,
   message: string,
-  options?: { originalError?: Error; extendedParams?: ExtendedParams }
+  options?: { originalError?: OriginalError; extendedParams?: ExtendedParams },
 ) => void;
+
+type EmitThrownErrorFn = (error: IConwayError, extendedParams?: ExtendedParams) => void;
 
 type FeatureFn<ErrorType extends string> = (
   featureName: string,
-  featureContextExtendedParams?: ExtendedParams
+  featureContextExtendedParams?: ExtendedParams,
 ) => {
+  /**
+   *  Creates and throws error of specified type.
+   *
+   * @param {ErrorTypes[number]["errorType"]} errorType - The type of the error to throw.
+   * @param {string} message - The message for the error.
+   * @param {OriginalError} originalError - The original error that caused this error.
+   * @return {void} -This function does not return anything.
+   * @throws ConwayError
+   */
   throw: ThrowFn<ErrorType>;
+
+  /**
+   * Creates and emits error of specified type.
+   *
+   * @param {ErrorTypes[number]["errorType"]} errorType - The type of the error to throw.
+   * @param {string} message - The message for the error.
+   * @param {Object} [options={}] - Optional parameters for the error.
+   * @param {Error} [options.originalError] - The original error that caused this error.
+   * @param {ExtendedParams} [options.extendedParams] - Additional extended parameters for the error.
+   * @return {void} This function does not return anything.
+   */
+  emit: EmitFn<ErrorType>;
+
+  /**
+   * Emits previously thrown error.
+   *
+   * @param {ErrorTypes[number]["errorType"]} error - already thrown previously error.
+   * @param {ExtendedParams} extendedParams - Additional extended parameters for the error.
+   * @return {void} This function does not return anything.
+   */
+  emitThrownError: EmitThrownErrorFn;
 };
 
 type ErrorSubcontext<ErrorType extends string> = {
@@ -102,7 +154,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
 
     function _createErrorContext(
       _contextName: string,
-      subContextExtendedParams: ExtendedParams = outerExtendedParams
+      contextExtendedParams: ExtendedParams = outerExtendedParams,
     ): ErrorSubcontext<ErrorTypes[number]["errorType"]> {
       return {
         /**
@@ -112,7 +164,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
          * @param {ExtendedParams} extendedParams - Additional extended parameters for the child context.
          * @return {Function} Function to create an error context with the specified child context name and extended params.
          */
-        subcontext: _createSubcontext(_contextName, subContextExtendedParams),
+        subcontext: _createSubcontext(_contextName, contextExtendedParams),
         /**
          * Creates a child feature within the current context.
          *
@@ -121,7 +173,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
          * @return {Function} The created error feature.
          */
         feature: (childFeatureName: string, extendedParams: ExtendedParams = {}) => {
-          const featureErrorContext = { ...subContextExtendedParams, ...extendedParams };
+          const featureErrorContext = { ...contextExtendedParams, ...extendedParams };
           return _createErrorFeature(childFeatureName, _contextName, featureErrorContext);
         },
       };
@@ -130,37 +182,45 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
     function _createErrorFeature(
       featureName: string,
       contextName: string,
-      featureContextExtendedParams: ExtendedParams = {}
+      featureContextExtendedParams: ExtendedParams = {},
     ) {
+      const createNewErrorObject = (
+        errorType: ErrorTypes[number]["errorType"],
+        message: string,
+        originalError?: OriginalError,
+      ) => {
+        const errorMapItem = errorsMap[errorType];
+        const messagePostfix =
+          originalError && errorMapItem?.createMessagePostfix ? errorMapItem.createMessagePostfix(originalError) : "";
+
+        const error = new (errorMapItem?.errorClass ?? UnknownError)(
+          contextName,
+          createContextedMessage(contextName, featureName, message + messagePostfix),
+          originalError,
+        );
+
+        return error;
+      };
+
+      const throwFn: ThrowFn<ErrorTypes[number]["errorType"]> = (errorType, message, originalError) => {
+        const error = createNewErrorObject(errorType, message, originalError);
+        throw error;
+      };
+
+      const emitFn: EmitFn<ErrorTypes[number]["errorType"]> = (errorType, message, options = {}) => {
+        const error = createNewErrorObject(errorType, message, options.originalError);
+        emitConwayError(error, options.extendedParams);
+      };
+
+      const emitConwayError: EmitThrownErrorFn = (error, extendedParams = {}) => {
+        const _extendedParams = { ...featureContextExtendedParams, ...extendedParams };
+        _options.emitFn?.(error, _extendedParams);
+      };
+
       return {
-        /**
-         * Throws an error of the specified type with the given message and optional original error and extended parameters.
-         *
-         * @param {ErrorTypes[number]["errorType"]} errorType - The type of the error to throw.
-         * @param {string} message - The message for the error.
-         * @param {Object} [options={}] - Optional parameters for the error.
-         * @param {Error} [options.originalError] - The original error that caused this error.
-         * @param {ExtendedParams} [options.extendedParams] - Additional extended parameters for the error.
-         * @return {void} This function does not return anything.
-         */
-        throw: (
-          errorType: ErrorTypes[number]["errorType"],
-          message: string,
-          options: { originalError?: Error; extendedParams?: ExtendedParams } = {}
-        ) => {
-          const errorMapItem = errorsMap[errorType];
-          const messagePostfix =
-            options.originalError && errorMapItem?.createMessagePostfix
-              ? errorMapItem.createMessagePostfix(options.originalError)
-              : "";
-
-          const error = new (errorMapItem?.errorClass ?? UnknownError)(
-            createContextedMessage(contextName, featureName, message + messagePostfix)
-          );
-
-          const _extendedParams = { ...featureContextExtendedParams, ...options.extendedParams };
-          _options.throwFn?.(error, _extendedParams);
-        },
+        throw: throwFn,
+        emit: emitFn,
+        emitThrownError: emitConwayError,
       };
     }
 
