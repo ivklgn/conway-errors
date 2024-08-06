@@ -118,7 +118,21 @@ type ObjectWithEmit<ErrorType> = {
 };
 
 type ErrorSubcontext<ErrorType extends string> = {
+  /**
+   * Create a child context within the current context.
+   *
+   * @param {string} childContextName - The name of the child context.
+   * @param {ExtendedParams} extendedParams - Additional extended parameters for the child context.
+   * @return {Function} Function to create an error context with the specified child context name and extended params.
+   */
   subcontext: (subcontextName: string, extendedParams?: ExtendedParams) => ErrorSubcontext<ErrorType>;
+  /**
+   * Creates a child feature within the current context.
+   *
+   * @param {string} childFeatureName - The name of the child feature.
+   * @param {ExtendedParams} [extendedParams={}] - Additional extended parameters for the child feature.
+   * @return {Function} The created error feature.
+   */
   feature: FeatureFn<ErrorType>;
 };
 
@@ -160,21 +174,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
       contextExtendedParams: ExtendedParams = outerExtendedParams,
     ): ErrorSubcontext<ErrorTypes[number]["errorType"]> {
       return {
-        /**
-         * Create a child context within the current context.
-         *
-         * @param {string} childContextName - The name of the child context.
-         * @param {ExtendedParams} extendedParams - Additional extended parameters for the child context.
-         * @return {Function} Function to create an error context with the specified child context name and extended params.
-         */
         subcontext: _createSubcontext(_contextName, contextExtendedParams),
-        /**
-         * Creates a child feature within the current context.
-         *
-         * @param {string} childFeatureName - The name of the child feature.
-         * @param {ExtendedParams} [extendedParams={}] - Additional extended parameters for the child feature.
-         * @return {Function} The created error feature.
-         */
         feature: (childFeatureName: string, extendedParams: ExtendedParams = {}) => {
           const featureErrorContext = { ...contextExtendedParams, ...extendedParams };
           return _createErrorFeature(childFeatureName, _contextName, featureErrorContext);
