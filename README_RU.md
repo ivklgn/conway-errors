@@ -11,23 +11,34 @@
 ```ts
 import { createError } from "conway-errors"; 
 
-// (1) создаем корневой контекст, где определяются базовые типы ошибок
+// (1) Создаем корневой контекст, где определяются базовые типы ошибок
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
 ] as const);
 
-// (2) создаем любое количество контекстов, например разделяем по команде или контексту
+// (2) Создаем любое количество контекстов, например разделяем по команде или контексту
 const errorAuthTeamContext = createErrorContext("AuthTeamContext");
 const errorPaymentTeamContext = createErrorContext("PaymentTeamContext");
 
-// (3) определяем конкретные реализации на базе функционала (features)
+// (3) Определяем конкретные реализации на базе функционала (features)
 const oauthError = errorAuthTeamContext.feature("OauthError");
 const paymentError = errorPaymentTeamContext.feature("PaymentError");
 
-// (4) пример выброса ошибок
-oauthError.throw("FrontendLogicError", "User not found");
-paymentError.throw("BackendLogicError", "Payment already processed");
+// (4) Пример выброса ошибок
+throw oauthError("FrontendLogicError", "User not found");
+throw paymentError("BackendLogicError", "Payment already processed");
+
+// (5) Пример эмиттинга выброшенных ошибок
+try {
+  throw oauthError("FrontendLogicError", "User not found");
+}
+catch(error) {
+  oauthError.emitCreatedError(error);
+}
+
+// (6) Пример эмиттинга ошибок без вызова throw 
+oauthError.emit("FrontendLogicError", "User not found");
 ```
 
 ### Вложенные контексты
@@ -53,8 +64,8 @@ const facebookError = socialAuthErrorContext.feature("FacebookAuth");
 const smsSendError = phoneAuthErrorContext.feature("SmsSender");
 
 // (4) пример выброса ошибок
-facebookError.throw("FrontendLogicError", "Account inactive");
-smsSendError.throw("BackendLogicError", "Limit exceed");
+throw facebookError("FrontendLogicError", "Account inactive");
+throw smsSendError("BackendLogicError", "Limit exceed");
 ```
 
 ### Переопределение функции выброса ошибки
@@ -70,7 +81,7 @@ const createErrorContext = createError([
   { errorType: "BackendLogicError" }
 ] as const, {
   // переопределяем поведение выброса ошибки
-  throwFn: (err) => {
+  emitFn: (err) => {
     Sentry.captureException(err);
   },
 });
@@ -89,12 +100,12 @@ const createErrorContext = createError([
 ] as const);
 
 const context = createErrorContext("Context");
-const feature = subcontext.feature("Feature");
+const featureError = subcontext.feature("Feature");
 
 try {
   uploadAvatar();
 } catch (err) {
-  feature.throw("FrontendLogicError", "Failed upload avatar", err);
+  throw featureError("FrontendLogicError", "Failed upload avatar", err);
   // будет выброшена ошибка:
   // FrontendLogicError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
@@ -111,7 +122,7 @@ const createErrorContext = createError(["FrontendLogicError", "BackendLogicError
     isSSR: typeof window === "undefined",
     projectName: "My cool frontend"
   },
-  throwFn: (err, extendedParams) => {
+  emitFn: (err, extendedParams) => {
     const { isSSR, projectName, logLevel = "error", location, subdomain } = extendedParams;
 
     Sentry.withScope(scope => {
@@ -134,9 +145,9 @@ const paymentErrorContext = createErrorContext("Payment", {
   subdomain: "Payment",
 });
 
-const cardPaymentError = subcontext.feature("Cardpayment", {
+const cardPaymentError = subcontext.feature("CardPayment", {
   location: "USA",
 });
 
-cardPaymentError.throw("BackendLogicError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
+throw cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
 ```
