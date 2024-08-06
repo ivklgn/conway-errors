@@ -26,15 +26,15 @@ const oauthError = errorAuthTeamContext.feature("OauthError");
 const paymentError = errorPaymentTeamContext.feature("PaymentError");
 
 // (4) Example of throwing errors
-oauthError.throw("FrontendLogickError", "User not found");
-paymentError.throw("BackendLogickError", "Payment already processed");
+throw oauthError("FrontendLogickError", "User not found");
+throw paymentError("BackendLogickError", "Payment already processed");
 
 // (5) Example of emitting thrown errors
 try {
-  oauthError.throw("FrontendLogickError", "User not found");
+  throw oauthError("FrontendLogickError", "User not found");
 }
 catch(error) {
-  oauthError.emitThrownError(error);
+  oauthError.emitCreatedError(error);
 }
 
 // (6) You also can emit error without throwing
@@ -64,8 +64,8 @@ const facebookError = socialAuthErrorContext.feature("FacebookAuth");
 const smsSendError = phoneAuthErrorContext.feature("SmsSender");
 
 // (4) Example of throwing errors
-facebookError.throw("FrontendLogickError", "Account inactive");
-smsSendError.throw("BackendLogickError", "Limit exceed");
+throw facebookError("FrontendLogickError", "Account inactive");
+throw smsSendError("BackendLogickError", "Limit exceed");
 ```
 
 ### Overriding the Error Emitting Function
@@ -98,12 +98,12 @@ const createErrorContext = createError([
 ] as const);
 
 const context = createErrorContext("Context");
-const feature = subcontext.feature("Feature");
+const featureError = subcontext.feature("Feature");
 
 try {
   uploadAvatar();
 } catch (err) {
-  feature.emit("FrontendLogickError", "Failed upload avatar", err);
+  featureError.emit("FrontendLogickError", "Failed upload avatar", err);
   // The following error will be emitted:
   // FrontendLogickError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
@@ -142,9 +142,9 @@ const paymentErrorContext = createErrorContext("Payment", {
   subdomain: "Payment",
 });
 
-const cardPaymentError = subcontext.feature("Cardpayment", {
+const cardPaymentError = subcontext.feature("CardPayment", {
   location: "USA",
 });
 
-cardPaymentError.throw("BackendLogickError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
+throw cardPaymentError("BackendLogickError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
 ```
