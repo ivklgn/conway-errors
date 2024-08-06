@@ -13,8 +13,8 @@ import { createError } from "conway-errors";
 
 // (1) Create the root context, where the base error types are defined
 const createErrorContext = createError([
-  { errorType: "FrontendLogickError" },
-  { errorType: "BackendLogickError" },
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" },
 ] as const);
 
 // (2) Create any number of contexts, for example, divided by team or context
@@ -26,19 +26,19 @@ const oauthError = errorAuthTeamContext.feature("OauthError");
 const paymentError = errorPaymentTeamContext.feature("PaymentError");
 
 // (4) Example of throwing errors
-throw oauthError("FrontendLogickError", "User not found");
-throw paymentError("BackendLogickError", "Payment already processed");
+throw oauthError("FrontendLogicError", "User not found");
+throw paymentError("BackendLogicError", "Payment already processed");
 
 // (5) Example of emitting thrown errors
 try {
-  throw oauthError("FrontendLogickError", "User not found");
+  throw oauthError("FrontendLogicError", "User not found");
 }
 catch(error) {
   oauthError.emitCreatedError(error);
 }
 
 // (6) You also can emit error without throwing
-oauthError.emit("FrontendLogickError", "User not found");
+oauthError.emit("FrontendLogicError", "User not found");
 ```
 
 ### Nested Contexts
@@ -48,8 +48,8 @@ import { createError } from "conway-errors";
 
 // (1) Create the root context, where the base error types are defined
 const createErrorContext = createError([
-  { errorType: "FrontendLogickError" },
-  { errorType: "BackendLogickError" },
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" },
 ] as const);
 
 // (2) Create any number of contexts, for example, divided by team or context
@@ -64,8 +64,8 @@ const facebookError = socialAuthErrorContext.feature("FacebookAuth");
 const smsSendError = phoneAuthErrorContext.feature("SmsSender");
 
 // (4) Example of throwing errors
-throw facebookError("FrontendLogickError", "Account inactive");
-throw smsSendError("BackendLogickError", "Limit exceed");
+throw facebookError("FrontendLogicError", "Account inactive");
+throw smsSendError("BackendLogicError", "Limit exceed");
 ```
 
 ### Overriding the Error Emitting Function
@@ -77,8 +77,8 @@ import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError([
-  { errorType: "FrontendLogickError" },
-  { errorType: "BackendLogickError" }
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" }
 ] as const, {
   // use sentry to log errors instead of default behavior with console.error()
   emitFn: (err) => {
@@ -93,8 +93,8 @@ const createErrorContext = createError([
 import { createError } from "conway-errors";
 
 const createErrorContext = createError([
-  { errorType: "FrontendLogickError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
-  { errorType: "BackendLogickError" },
+  { errorType: "FrontendLogicError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+  { errorType: "BackendLogicError" },
 ] as const);
 
 const context = createErrorContext("Context");
@@ -103,9 +103,9 @@ const featureError = subcontext.feature("Feature");
 try {
   uploadAvatar();
 } catch (err) {
-  featureError.emit("FrontendLogickError", "Failed upload avatar", err);
+  featureError.emit("FrontendLogicError", "Failed upload avatar", err);
   // The following error will be emitted:
-  // FrontendLogickError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
+  // FrontendLogicError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
 ```
 
@@ -115,7 +115,7 @@ try {
 import { createError } from "conway-errors"; 
 import * as Sentry from "@sentry/nextjs";
 
-const createErrorContext = createError(["FrontendLogickError", "BackendLogickError"], {
+const createErrorContext = createError(["FrontendLogicError", "BackendLogicError"], {
   extendedParams: {
     isSSR: typeof window === "undefined",
     projectName: "My cool frontend"
@@ -146,5 +146,5 @@ const cardPaymentError = subcontext.feature("CardPayment", {
   location: "USA",
 });
 
-throw cardPaymentError("BackendLogickError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
+throw cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
 ```
