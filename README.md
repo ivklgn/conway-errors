@@ -90,7 +90,7 @@ const createErrorContext = createError([
 ### Extending Base Error Messages
 
 ```ts
-import { createError } from "conway-errors"; 
+import { createError } from "conway-errors";
 
 const createErrorContext = createError([
   { errorType: "FrontendLogickError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },

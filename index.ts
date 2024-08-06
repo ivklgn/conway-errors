@@ -92,11 +92,28 @@ type CreateErrorFn<ErrorType extends string> = (
 ) => IConwayError;
 
 type ObjectWithEmit<ErrorType> = {
+  /**
+   * Creates and emits error of specified type.
+   *
+   * @param {ErrorTypes[number]["errorType"]} errorType - The type of the error to throw.
+   * @param {string} message - The message for the error.
+   * @param {Object} [options={}] - Optional parameters for the error.
+   * @param {Error} [options.originalError] - The original error that caused this error.
+   * @param {ExtendedParams} [options.extendedParams] - Additional extended parameters for the error.
+   * @return {void} This function does not return anything.
+   */
   emit: (
     errorType: ErrorType,
     message: string,
     options?: { originalError?: OriginalError; extendedParams?: ExtendedParams },
   ) => void;
+  /**
+   * Emits previously created error.
+   *
+   * @param {ErrorTypes[number]["errorType"]} error - already thrown previously error.
+   * @param {ExtendedParams} extendedParams - Additional extended parameters for the error.
+   * @return {void} This function does not return anything.
+   */
   emitCreated: (error: IConwayError, extendedParams?: ExtendedParams) => void;
 };
 
