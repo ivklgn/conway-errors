@@ -53,7 +53,7 @@ function defaultEmitFn(err: IConwayError) {
 
 type ExtendedParams = Record<string, unknown>;
 
-type OriginalError = Error | Record<string, unknown>;
+type OriginalError = Error | Record<string, unknown> | unknown;
 
 interface CreateErrorOptions {
   emitFn?: (err: IConwayError, extendedParams?: ExtendedParams) => void;
@@ -78,7 +78,11 @@ type ErrorMap = Record<
   }
 >;
 
-type ThrowFn<ErrorType extends string> = (errorType: ErrorType, message: string, originalError?: OriginalError) => void;
+type NewErrorFn<ErrorType extends string> = (
+  errorType: ErrorType,
+  message: string,
+  originalError?: OriginalError,
+) => void;
 
 type EmitFn<ErrorType extends string> = (
   errorType: ErrorType,
@@ -92,16 +96,17 @@ type FeatureFn<ErrorType extends string> = (
   featureName: string,
   featureContextExtendedParams?: ExtendedParams,
 ) => {
+  create: NewErrorFn<ErrorType>;
+
   /**
-   *  Creates and throws error of specified type.
+   *  Creates error of specified type.
    *
    * @param {ErrorTypes[number]["errorType"]} errorType - The type of the error to throw.
    * @param {string} message - The message for the error.
    * @param {OriginalError} originalError - The original error that caused this error.
-   * @return {void} -This function does not return anything.
-   * @throws ConwayError
+   * @return {ConwayError} -This function does not return anything.
    */
-  throw: ThrowFn<ErrorType>;
+  throw: NewErrorFn<ErrorType>;
 
   /**
    * Creates and emits error of specified type.
@@ -199,7 +204,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         errorType: ErrorTypes[number]["errorType"],
         message: string,
         originalError?: OriginalError,
-      ) => {
+      ): ConwayError => {
         const errorMapItem = errorsMap[errorType];
         const messagePostfix =
           originalError && errorMapItem?.createMessagePostfix ? errorMapItem.createMessagePostfix(originalError) : "";
@@ -213,7 +218,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         return error;
       };
 
-      const throwFn: ThrowFn<ErrorTypes[number]["errorType"]> = (errorType, message, originalError) => {
+      const throwFn: NewErrorFn<ErrorTypes[number]["errorType"]> = (errorType, message, originalError) => {
         const error = createNewErrorObject(errorType, message, originalError);
         throw error;
       };
@@ -229,6 +234,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
       };
 
       return {
+        create: createNewErrorObject,
         throw: throwFn,
         emit: emitFn,
         emitThrownError: emitConwayError,

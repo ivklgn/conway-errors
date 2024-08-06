@@ -39,6 +39,9 @@ catch(error) {
 
 // (6) You also can emit error without throwing
 oauthError.emit("FrontendLogickError", "User not found");
+
+// (7) You can also create new error instance without throwing/emitting
+oauthError.create("FrontendLogickError", "User not found");
 ```
 
 ### Nested Contexts
