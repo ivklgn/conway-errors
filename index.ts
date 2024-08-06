@@ -53,7 +53,7 @@ function defaultEmitFn(err: IConwayError) {
 
 type ExtendedParams = Record<string, unknown>;
 
-type OriginalError = Error | Record<string, unknown>;
+type OriginalError = Error | Record<string, unknown> | unknown;
 
 interface CreateErrorOptions {
   emitFn?: (err: IConwayError, extendedParams?: ExtendedParams) => void;
