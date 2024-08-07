@@ -7,10 +7,10 @@ import { createError, isConwayError, type IConwayError } from "./index";
 test("without error types will throw always UnknownError", () => {
   const createErrorContext = createError();
   const errorContext = createErrorContext("Context");
-  const feature = errorContext.feature("Feature");
+  const featureError = errorContext.feature("Feature");
 
   try {
-    feature.throw("ErrorName", "ErrorMessage");
+    throw featureError("ErrorName", "ErrorMessage");
   } catch (err: any) {
     assert.is(err.name, "UnknownError");
     assert.is(err.message, "Context/Feature: ErrorMessage");
@@ -20,17 +20,17 @@ test("without error types will throw always UnknownError", () => {
 test("error types throw always mapped errors", () => {
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const);
   const errorContext = createErrorContext("Context");
-  const feature = errorContext.feature("Feature");
+  const featureError = errorContext.feature("Feature");
 
   try {
-    feature.throw("ErrorType1", "ErrorMessage");
+    throw featureError("ErrorType1", "ErrorMessage");
   } catch (err: any) {
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
 
   try {
-    feature.throw("ErrorType2", "ErrorMessage");
+    throw featureError("ErrorType2", "ErrorMessage");
   } catch (err: any) {
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Feature: ErrorMessage");
@@ -44,10 +44,10 @@ test("nested context write correct message", () => {
   const subcontext1 = context.subcontext("Subcontext1");
   const subcontext2 = subcontext1.subcontext("Subcontext2");
 
-  const feature1 = subcontext2.feature("Feature 1");
+  const feature1Error = subcontext2.feature("Feature 1");
 
   try {
-    feature1.throw("ErrorType1", "ErrorMessage");
+    throw feature1Error("ErrorType1", "ErrorMessage");
   } catch (err: any) {
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Subcontext1/Subcontext2/Feature 1: ErrorMessage");
@@ -56,10 +56,10 @@ test("nested context write correct message", () => {
   const subcontext3 = subcontext2.subcontext("Subcontext3");
   const subcontext4 = subcontext3.subcontext("Subcontext4");
 
-  const feature2 = subcontext4.feature("Feature 2");
+  const feature2Error = subcontext4.feature("Feature 2");
 
   try {
-    feature2.throw("ErrorType2", "ErrorMessage");
+    throw feature2Error("ErrorType2", "ErrorMessage");
   } catch (err: any) {
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Subcontext1/Subcontext2/Subcontext3/Subcontext4/Feature 2: ErrorMessage");
@@ -70,20 +70,17 @@ test("custom emit function should override default emit", () => {
   const mockedEmit = snoop((err, context) => {});
 
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
-    emitFn: (err, context) => {
+    handleEmit: (err, context) => {
       mockedEmit.fn(err.message, context);
     },
   });
 
   const errorContext = createErrorContext("Context");
-  const feature = errorContext.feature("Feature");
+  const featureError = errorContext.feature("Feature");
 
-  try {
-    feature.throw("ErrorType1", "ErrorMessage");
-  } catch (error) {
-    feature.emitThrownError(error as IConwayError);
-    assert.ok(mockedEmit.calledOnce);
-  }
+  featureError("ErrorType1", "ErrorMessage").emit();
+
+  assert.ok(mockedEmit.calledOnce);
 
   assert.equal(
     // @ts-ignore
@@ -100,25 +97,25 @@ test("custom emit function should override default emit", () => {
 
 test("createMessagePostfix add message if originalError provided", () => {
   const createErrorContext = createError([
-    { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+    { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + (originalError as Error).message },
     { errorType: "ErrorType2", createMessagePostfix: () => " some additional info" },
   ] as const);
 
   const context = createErrorContext("Context");
   const subcontext = context.subcontext("Subcontext1");
 
-  const feature = subcontext.feature("Feature");
+  const featureError = subcontext.feature("Feature");
   const originalError = new Error("OriginalError");
 
   try {
-    feature.throw("ErrorType1", "ErrorMessage", originalError);
+    throw featureError("ErrorType1", "ErrorMessage", originalError);
   } catch (err: any) {
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage >>> OriginalError");
   }
 
   try {
-    feature.throw("ErrorType2", "ErrorMessage", originalError);
+    throw featureError("ErrorType2", "ErrorMessage", originalError);
   } catch (err: any) {
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage some additional info");
@@ -132,7 +129,7 @@ test("createContext provide context from createError to feature and available in
     extendedParams: {
       ctxA: 1,
     },
-    emitFn: (err, extendedParams) => {
+    handleEmit: (err, extendedParams) => {
       mockedEmit.fn(err, extendedParams);
     },
   });
@@ -145,25 +142,21 @@ test("createContext provide context from createError to feature and available in
     ctxC: 3,
   });
 
-  const feature1 = subcontext1.feature("Feature1", {
+  const feature1Error = subcontext1.feature("Feature1", {
     ctxD: 4,
   });
 
-  try {
-    feature1.throw("ErrorType1", "ErrorMessage");
-  } catch (error) {
-    feature1.emitThrownError(error as IConwayError);
-    assert.equal(
-      // @ts-ignore
-      mockedEmit.calls[0].arguments[1],
-      {
-        ctxA: 1,
-        ctxB: 2,
-        ctxC: 3,
-        ctxD: 4,
-      },
-    );
-  }
+  feature1Error("ErrorType1", "ErrorMessage").emit();
+  assert.equal(
+    // @ts-ignore
+    mockedEmit.calls[0].arguments[1],
+    {
+      ctxA: 1,
+      ctxB: 2,
+      ctxC: 3,
+      ctxD: 4,
+    },
+  );
 
   // rewrite context
 
@@ -172,12 +165,12 @@ test("createContext provide context from createError to feature and available in
     ctxC: 3,
   });
 
-  const feature2 = subcontext2.feature("Feature2", {
+  const feature2Error = subcontext2.feature("Feature2", {
     ctxB: 1000,
     ctxD: 4,
   });
 
-  feature2.emit("ErrorType1", "ErrorMessage");
+  feature2Error("ErrorType1", "ErrorMessage").emit();
 
   assert.equal(
     // @ts-ignore
@@ -190,7 +183,7 @@ test("createContext provide context from createError to feature and available in
     },
   );
 
-  feature2.emit("ErrorType1", "ErrorMessage", { extendedParams: { ctxE: 5 } });
+  feature2Error("ErrorType1", "ErrorMessage").emit({ ctxE: 5 });
   assert.equal(
     // @ts-ignore
     mockedEmit.calls[2].arguments[1],
@@ -214,9 +207,9 @@ test("isConwayError type guard works correctly", () => {
 
   const createErrorContext = createError();
   const errorContext = createErrorContext("Context");
-  const feature = errorContext.feature("Feature");
+  const featureError = errorContext.feature("Feature");
   try {
-    feature.throw("ErrorName", "ErrorMessage");
+    throw featureError("ErrorName", "ErrorMessage");
   } catch (err: any) {
     assert.equal(isConwayError(err), true);
   }
