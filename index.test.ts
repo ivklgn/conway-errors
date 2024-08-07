@@ -78,7 +78,7 @@ test("custom emit function should override default emit", () => {
   const errorContext = createErrorContext("Context");
   const featureError = errorContext.feature("Feature");
 
-  featureError.emit("ErrorType1", "ErrorMessage");
+  featureError("ErrorType1", "ErrorMessage").emit();
 
   assert.ok(mockedEmit.calledOnce);
 
@@ -97,7 +97,7 @@ test("custom emit function should override default emit", () => {
 
 test("createMessagePostfix add message if originalError provided", () => {
   const createErrorContext = createError([
-    { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+    { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + (originalError as Error).message },
     { errorType: "ErrorType2", createMessagePostfix: () => " some additional info" },
   ] as const);
 
@@ -146,21 +146,17 @@ test("createContext provide context from createError to feature and available in
     ctxD: 4,
   });
 
-  try {
-    throw feature1Error("ErrorType1", "ErrorMessage");
-  } catch (error) {
-    feature1Error.emitCreated(error as IConwayError);
-    assert.equal(
-      // @ts-ignore
-      mockedEmit.calls[0].arguments[1],
-      {
-        ctxA: 1,
-        ctxB: 2,
-        ctxC: 3,
-        ctxD: 4,
-      },
-    );
-  }
+  feature1Error("ErrorType1", "ErrorMessage").emit();
+  assert.equal(
+    // @ts-ignore
+    mockedEmit.calls[0].arguments[1],
+    {
+      ctxA: 1,
+      ctxB: 2,
+      ctxC: 3,
+      ctxD: 4,
+    },
+  );
 
   // rewrite context
 
@@ -174,7 +170,7 @@ test("createContext provide context from createError to feature and available in
     ctxD: 4,
   });
 
-  feature2Error.emit("ErrorType1", "ErrorMessage");
+  feature2Error("ErrorType1", "ErrorMessage").emit();
 
   assert.equal(
     // @ts-ignore
@@ -187,7 +183,7 @@ test("createContext provide context from createError to feature and available in
     },
   );
 
-  feature2Error.emit("ErrorType1", "ErrorMessage", { extendedParams: { ctxE: 5 } });
+  feature2Error("ErrorType1", "ErrorMessage").emit({ ctxE: 5 });
   assert.equal(
     // @ts-ignore
     mockedEmit.calls[2].arguments[1],

@@ -5,6 +5,8 @@ export interface IConwayError extends Error {
   rootContext: string;
   contextsChunk: string;
   originalError?: OriginalError;
+
+  emit: EmitFn;
 }
 
 class ConwayError extends Error implements IConwayError {
@@ -17,6 +19,7 @@ class ConwayError extends Error implements IConwayError {
     rootContext: string,
     contextsChunk: string,
     message: string,
+    emit: EmitFn,
     originalError?: OriginalError,
   ) {
     super(message);
@@ -24,8 +27,14 @@ class ConwayError extends Error implements IConwayError {
     this.rootContext = rootContext;
     this.contextsChunk = contextsChunk;
     this.originalError = originalError;
+    this.emit = emit;
   }
+
+  emit: EmitFn;
 }
+
+type EmitFn = (extendedParams?: ExtendedParams) => void;
+
 /**
  * Type guard which helps to understand if error is Conway error.
  * @param error
@@ -37,8 +46,8 @@ export function isConwayError(error: unknown): error is IConwayError {
 
 function createErrorClass(name: string, rootContext: string) {
   return class extends ConwayError {
-    constructor(contextsChunk: string, message: string, originalError?: OriginalError) {
-      super(name, rootContext, contextsChunk, message, originalError);
+    constructor(contextsChunk: string, message: string, emit: EmitFn, originalError?: OriginalError) {
+      super(name, rootContext, contextsChunk, message, emit, originalError);
     }
   };
 }
@@ -81,41 +90,13 @@ type ErrorMap = Record<
 type FeatureFn<ErrorType extends string> = (
   featureName: string,
   featureContextExtendedParams?: ExtendedParams,
-) => FeatureFnResult<ErrorType>;
-
-type FeatureFnResult<ErrorType extends string> = CreateErrorFn<ErrorType> & ObjectWithEmit<ErrorType>;
+) => CreateErrorFn<ErrorType>;
 
 type CreateErrorFn<ErrorType extends string> = (
   errorType: ErrorType,
   message: string,
   originalError?: OriginalError,
 ) => IConwayError;
-
-type ObjectWithEmit<ErrorType> = {
-  /**
-   * Creates and emits error of specified type.
-   *
-   * @param {ErrorTypes[number]["errorType"]} errorType - The type of the error to throw.
-   * @param {string} message - The message for the error.
-   * @param {Object} [options={}] - Optional parameters for the error.
-   * @param {Error} [options.originalError] - The original error that caused this error.
-   * @param {ExtendedParams} [options.extendedParams] - Additional extended parameters for the error.
-   * @return {void} This function does not return anything.
-   */
-  emit: (
-    errorType: ErrorType,
-    message: string,
-    options?: { originalError?: OriginalError; extendedParams?: ExtendedParams },
-  ) => void;
-  /**
-   * Emits previously created error.
-   *
-   * @param {ErrorTypes[number]["errorType"]} error - already thrown previously error.
-   * @param {ExtendedParams} extendedParams - Additional extended parameters for the error.
-   * @return {void} This function does not return anything.
-   */
-  emitCreated: (error: IConwayError, extendedParams?: ExtendedParams) => void;
-};
 
 type ErrorSubcontext<ErrorType extends string> = {
   /**
@@ -196,28 +177,22 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         const messagePostfix =
           originalError && errorMapItem?.createMessagePostfix ? errorMapItem.createMessagePostfix(originalError) : "";
 
+        const emitFn: EmitFn = (extendedParams = {}) => {
+          const _extendedParams = { ...featureContextExtendedParams, ...extendedParams };
+          _options.emitFn?.(error, _extendedParams);
+        };
+
         const error = new (errorMapItem?.errorClass ?? UnknownError)(
           contextName,
           createContextedMessage(contextName, featureName, message + messagePostfix),
+          emitFn,
           originalError,
         );
 
         return error;
       };
 
-      const objectWithEmit: ObjectWithEmit<ErrorTypes[number]["errorType"]> = {
-        emit: (errorType, message, options = {}) => {
-          const errorObject = createNewErrorObject(errorType, message, options.originalError);
-          const _extendedParams = { ...featureContextExtendedParams, ...(options.extendedParams || {}) };
-          _options.emitFn?.(errorObject, _extendedParams);
-        },
-        emitCreated: (error, extendedParams = {}) => {
-          const _extendedParams = { ...featureContextExtendedParams, ...extendedParams };
-          _options.emitFn?.(error, _extendedParams);
-        },
-      };
-
-      return Object.assign(createNewErrorObject, objectWithEmit);
+      return createNewErrorObject;
     }
 
     return _createErrorContext(contextName);
