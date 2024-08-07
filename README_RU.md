@@ -34,11 +34,11 @@ try {
   throw oauthError("FrontendLogicError", "User not found");
 }
 catch(error) {
-  oauthError.emitCreatedError(error);
+  (error as IConwayError).emit(error);
 }
 
 // (6) Пример эмиттинга ошибок без вызова throw 
-oauthError.emit("FrontendLogicError", "User not found");
+oauthError("FrontendLogicError", "User not found").emit();
 ```
 
 ### Вложенные контексты
@@ -149,5 +149,5 @@ const cardPaymentError = subcontext.feature("CardPayment", {
   location: "USA",
 });
 
-throw cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
+throw cardPaymentError("BackendLogicError", "Payment failed").emit({ extendedParams: { logLevel: "fatal" } });
 ```

@@ -34,11 +34,11 @@ try {
   throw oauthError("FrontendLogicError", "User not found");
 }
 catch(error) {
-  oauthError.emitCreatedError(error);
+  (error as IConwayError).emit(error);
 }
 
 // (6) You also can emit error without throwing
-oauthError.emit("FrontendLogicError", "User not found");
+oauthError("FrontendLogicError", "User not found").emit();
 ```
 
 ### Nested Contexts
@@ -93,7 +93,7 @@ const createErrorContext = createError([
 import { createError } from "conway-errors";
 
 const createErrorContext = createError([
-  { errorType: "FrontendLogicError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+  { errorType: "FrontendLogicError", createMessagePostfix: (originalError) => " >>> " + (originalError as Error).message },
   { errorType: "BackendLogicError" },
 ] as const);
 
@@ -103,7 +103,7 @@ const featureError = subcontext.feature("Feature");
 try {
   uploadAvatar();
 } catch (err) {
-  featureError.emit("FrontendLogicError", "Failed upload avatar", err);
+  featureError("FrontendLogicError", "Failed upload avatar", err).emit();
   // The following error will be emitted:
   // FrontendLogicError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
@@ -146,5 +146,5 @@ const cardPaymentError = subcontext.feature("CardPayment", {
   location: "USA",
 });
 
-throw cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { logLevel: "fatal" } });
+throw cardPaymentError("BackendLogicError", "Payment failed").emit({ extendedParams: { logLevel: "fatal" } });
 ```
