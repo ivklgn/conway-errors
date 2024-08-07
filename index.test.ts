@@ -70,7 +70,7 @@ test("custom emit function should override default emit", () => {
   const mockedEmit = snoop((err, context) => {});
 
   const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
-    emitFn: (err, context) => {
+    handleEmit: (err, context) => {
       mockedEmit.fn(err.message, context);
     },
   });
@@ -129,7 +129,7 @@ test("createContext provide context from createError to feature and available in
     extendedParams: {
       ctxA: 1,
     },
-    emitFn: (err, extendedParams) => {
+    handleEmit: (err, extendedParams) => {
       mockedEmit.fn(err, extendedParams);
     },
   });

@@ -56,7 +56,7 @@ function createContextedMessage(contextPath: string, featureName: string, messag
   return `${contextPath}/${featureName}: ${message}`;
 }
 
-function defaultEmitFn(err: IConwayError) {
+function defaultHandleEmit(err: IConwayError) {
   console.error(err);
 }
 
@@ -65,12 +65,12 @@ type ExtendedParams = Record<string, unknown>;
 type OriginalError = Error | Record<string, unknown> | unknown;
 
 interface CreateErrorOptions {
-  emitFn?: (err: IConwayError, extendedParams?: ExtendedParams) => void;
+  handleEmit?: (err: IConwayError, extendedParams?: ExtendedParams) => void;
   extendedParams?: ExtendedParams;
 }
 
 const defaultErrorOptions: CreateErrorOptions = {
-  emitFn: defaultEmitFn,
+  handleEmit: defaultHandleEmit,
   extendedParams: {},
 };
 
@@ -177,15 +177,15 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         const messagePostfix =
           originalError && errorMapItem?.createMessagePostfix ? errorMapItem.createMessagePostfix(originalError) : "";
 
-        const emitFn: EmitFn = (extendedParams = {}) => {
+        const emit: EmitFn = (extendedParams = {}) => {
           const _extendedParams = { ...featureContextExtendedParams, ...extendedParams };
-          _options.emitFn?.(error, _extendedParams);
+          _options.handleEmit?.(error, _extendedParams);
         };
 
         const error = new (errorMapItem?.errorClass ?? UnknownError)(
           contextName,
           createContextedMessage(contextName, featureName, message + messagePostfix),
-          emitFn,
+          emit,
           originalError,
         );
 
