@@ -85,13 +85,13 @@ test("custom emit function should override default emit", () => {
   assert.equal(
     // @ts-ignore
     mockedEmit.calls[0].arguments[0],
-    "Context/Feature: ErrorMessage",
+    "Context/Feature: ErrorMessage"
   );
 
   assert.equal(
     // @ts-ignore
     mockedEmit.calls[0].arguments[1],
-    {},
+    {}
   );
 });
 
@@ -108,14 +108,14 @@ test("createMessagePostfix add message if originalError provided", () => {
   const originalError = new Error("OriginalError");
 
   try {
-    throw featureError("ErrorType1", "ErrorMessage", originalError);
+    throw featureError("ErrorType1", "ErrorMessage", { originalError });
   } catch (err: any) {
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage >>> OriginalError");
   }
 
   try {
-    throw featureError("ErrorType2", "ErrorMessage", originalError);
+    throw featureError("ErrorType2", "ErrorMessage", { originalError });
   } catch (err: any) {
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage some additional info");
@@ -155,7 +155,7 @@ test("createContext provide context from createError to feature and available in
       ctxB: 2,
       ctxC: 3,
       ctxD: 4,
-    },
+    }
   );
 
   // rewrite context
@@ -180,7 +180,7 @@ test("createContext provide context from createError to feature and available in
       ctxB: 1000,
       ctxC: 3,
       ctxD: 4,
-    },
+    }
   );
 
   feature2Error("ErrorType1", "ErrorMessage").emit({ ctxE: 5 });
@@ -193,7 +193,7 @@ test("createContext provide context from createError to feature and available in
       ctxC: 3,
       ctxD: 4,
       ctxE: 5,
-    },
+    }
   );
 });
 
@@ -213,6 +213,31 @@ test("isConwayError type guard works correctly", () => {
   } catch (err: any) {
     assert.equal(isConwayError(err), true);
   }
+});
+
+test("feature error can receive extendedParams before emit", () => {
+  const mockedEmit = snoop((err, extendedParams) => {});
+
+  const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {
+    handleEmit: (err, extendedParams) => {
+      mockedEmit.fn(err, extendedParams);
+    },
+  });
+
+  const context = createErrorContext("Context");
+  const subcontext = context.subcontext("Subcontext");
+  const featureError = subcontext.feature("Feature");
+
+  featureError("ErrorType1", "ErrorMessage", { extendedParams: { a: 1 } }).emit({ b: 2 });
+
+  assert.equal(
+    // @ts-ignore
+    mockedEmit.calls[0].arguments[1],
+    {
+      a: 1,
+      b: 2,
+    }
+  );
 });
 
 test.run();

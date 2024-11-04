@@ -1,7 +1,7 @@
 {
   "name": "conway-errors",
   "source": "index.ts",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": false,
   "description": "Create errors with Conway's law",
   "exports": {
@@ -18,7 +18,7 @@
     "url": "git+ssh://git@github.com/ivklgn/conway-errors.git"
   },
   "scripts": {
-    "type-check": "tsc --noEmit --p tsconfig.build.json",
+    "type-check": "tsc --noEmit --p tsconfig.json",
     "build": "npm run clean && microbundle",
     "test": "ts-node index.test.ts",
     "lint": "biome lint ./index.ts ./index.test.ts",

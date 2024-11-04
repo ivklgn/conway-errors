@@ -149,5 +149,6 @@ const cardPaymentError = subcontext.feature("CardPayment", {
   location: "USA",
 });
 
-throw cardPaymentError("BackendLogicError", "Payment failed").emit({ extendedParams: { logLevel: "fatal" } });
+const error = cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { a: 1 } });
+error.emit({ extendedParams: { logLevel: "fatal" } })
 ```

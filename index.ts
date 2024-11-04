@@ -20,7 +20,7 @@ class ConwayError extends Error implements IConwayError {
     contextsChunk: string,
     message: string,
     emit: EmitFn,
-    originalError?: OriginalError,
+    originalError?: OriginalError
   ) {
     super(message);
     this.name = name;
@@ -89,13 +89,18 @@ type ErrorMap = Record<
 
 type FeatureFn<ErrorType extends string> = (
   featureName: string,
-  featureContextExtendedParams?: ExtendedParams,
+  featureContextExtendedParams?: ExtendedParams
 ) => CreateErrorFn<ErrorType>;
+
+type ErrorFnOptions = {
+  originalError?: OriginalError;
+  extendedParams?: ExtendedParams;
+};
 
 type CreateErrorFn<ErrorType extends string> = (
   errorType: ErrorType,
   message: string,
-  originalError?: OriginalError,
+  options?: ErrorFnOptions
 ) => IConwayError;
 
 type ErrorSubcontext<ErrorType extends string> = {
@@ -152,7 +157,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
 
     function _createErrorContext(
       _contextName: string,
-      contextExtendedParams: ExtendedParams = outerExtendedParams,
+      contextExtendedParams: ExtendedParams = outerExtendedParams
     ): ErrorSubcontext<ErrorTypes[number]["errorType"]> {
       return {
         subcontext: _createSubcontext(_contextName, contextExtendedParams),
@@ -166,19 +171,21 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
     function _createErrorFeature(
       featureName: string,
       contextName: string,
-      featureContextExtendedParams: ExtendedParams = {},
+      featureContextExtendedParams: ExtendedParams = {}
     ) {
       const createNewErrorObject: CreateErrorFn<ErrorTypes[number]["errorType"]> = (
         errorType,
         message: string,
-        originalError?: OriginalError,
+        options?: ErrorFnOptions
       ) => {
         const errorMapItem = errorsMap[errorType];
         const messagePostfix =
-          originalError && errorMapItem?.createMessagePostfix ? errorMapItem.createMessagePostfix(originalError) : "";
+          options?.originalError && errorMapItem?.createMessagePostfix
+            ? errorMapItem.createMessagePostfix(options?.originalError)
+            : "";
 
         const emit: EmitFn = (extendedParams = {}) => {
-          const _extendedParams = { ...featureContextExtendedParams, ...extendedParams };
+          const _extendedParams = { ...featureContextExtendedParams, ...options?.extendedParams, ...extendedParams };
           _options.handleEmit?.(error, _extendedParams);
         };
 
@@ -186,7 +193,7 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
           contextName,
           createContextedMessage(contextName, featureName, message + messagePostfix),
           emit,
-          originalError,
+          options?.originalError
         );
 
         return error;
