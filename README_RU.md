@@ -34,7 +34,9 @@ try {
   throw oauthError("FrontendLogicError", "User not found");
 }
 catch(error) {
-  (error as IConwayError).emit(error);
+  if (isConwayError(error)) {
+    error.emit(error);
+  }
 }
 
 // (6) Пример эмиттинга ошибок без вызова throw 
