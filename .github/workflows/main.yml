@@ -1,8 +1,8 @@
 name: CI
 
 on:
-  push:
-  pull_request:
+  - push
+  - pull_request
 
 permissions:
   contents: read
@@ -10,21 +10,13 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node:
-          - 20
-          - 18
-          - 16
-          - 14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup node ${{ matrix.node }}
+      - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
       - name: Download deps
