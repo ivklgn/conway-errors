@@ -1,8 +1,17 @@
 # conway-errors
 
-The library allows you to create an error hierarchy with minimal API usage without explicit class inheritance.
+[![npm version](https://badge.fury.io/js/conway-errors.svg)](https://badge.fury.io/js/conway-errors)
+[![Downloads](https://img.shields.io/npm/dm/conway-errors.svg)](https://www.npmjs.com/package/conway-errors)
+
+Effortlessly create a structured error hierarchy with a minimal API, no class inheritance needed
 
 [Go to russian documentation](README_RU.md)
+
+## Installation
+
+```bash
+npm install conway-errors
+```
 
 ## Usage
 
@@ -58,8 +67,8 @@ const createErrorContext = createError([
 const authTeamErrorContext = createErrorContext("AuthTeamContext");
 
 // (3) Create any number of nested contexts
-const socialAuthErrorContext = createErrorContext.subcontext("SocialAuth");
-const phoneAuthErrorContext = createErrorContext.subcontext("PhoneAuth");
+const socialAuthErrorContext = authTeamErrorContext.subcontext("SocialAuth");
+const phoneAuthErrorContext = authTeamErrorContext.subcontext("PhoneAuth");
 
 // (3) Define specific implementations based on features
 const facebookError = socialAuthErrorContext.feature("FacebookAuth");
@@ -83,7 +92,7 @@ const createErrorContext = createError([
   { errorType: "BackendLogicError" }
 ] as const, {
   // use sentry to log errors instead of default behavior with console.error()
-  emitFn: (err) => {
+  handleEmit: (err) => {
     Sentry.captureException(err);
   },
 });
@@ -122,7 +131,7 @@ const createErrorContext = createError(["FrontendLogicError", "BackendLogicError
     isSSR: typeof window === "undefined",
     projectName: "My cool frontend"
   },
-  emitFn: (err, extendedParams) => {
+  handleEmit: (err, extendedParams) => {
     const { isSSR, projectName, logLevel = "error", location, subdomain } = extendedParams;
 
     Sentry.withScope(scope => {
@@ -144,7 +153,7 @@ const paymentErrorContext = createErrorContext("Payment", {
   subdomain: "Payment",
 });
 
-const cardPaymentError = subcontext.feature("CardPayment", {
+const cardPaymentError = paymentErrorContext.feature("CardPayment", {
   location: "USA",
 });
 
