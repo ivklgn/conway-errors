@@ -44,7 +44,7 @@ try {
 }
 catch(error) {
   if (isConwayError(error)) {
-    error.emit(error);
+    error.emit();
   }
 }
 
