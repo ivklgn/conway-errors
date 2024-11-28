@@ -230,6 +230,12 @@ test("feature error can receive extendedParams before emit", () => {
 
   featureError("ErrorType1", "ErrorMessage", { extendedParams: { a: 1 } }).emit({ b: 2 });
 
+  try {
+    throw featureError("ErrorType1", "ErrorMessage", { extendedParams: { a: 1 } });
+  } catch (err: any) {
+    assert.equal(err?.extendedParams, { a: 1 });
+  }
+
   assert.equal(
     // @ts-ignore
     mockedEmit.calls[0].arguments[1],
@@ -238,6 +244,26 @@ test("feature error can receive extendedParams before emit", () => {
       b: 2,
     }
   );
+});
+
+test("error object write extendedParams to properties", () => {
+  const createErrorContext = createError([{ errorType: "ErrorType1" }, { errorType: "ErrorType2" }] as const, {});
+
+  const context = createErrorContext("Context");
+  const subcontext = context.subcontext("Subcontext");
+  const featureError = subcontext.feature("Feature");
+
+  try {
+    throw featureError("ErrorType1", "ErrorMessage");
+  } catch (err: any) {
+    assert.is(err?.extendedParams, undefined);
+  }
+
+  try {
+    throw featureError("ErrorType1", "ErrorMessage", { extendedParams: { a: 1 } });
+  } catch (err: any) {
+    assert.equal(err?.extendedParams, { a: 1 });
+  }
 });
 
 test.run();
