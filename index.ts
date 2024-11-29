@@ -5,6 +5,7 @@ export interface IConwayError extends Error {
   rootContext: string;
   contextsChunk: string;
   originalError?: OriginalError;
+  extendedParams?: ExtendedParams;
 
   emit: EmitFn;
 }
@@ -13,6 +14,7 @@ class ConwayError extends Error implements IConwayError {
   readonly rootContext: string;
   readonly contextsChunk: string;
   readonly originalError?: OriginalError;
+  readonly extendedParams?: ExtendedParams;
 
   constructor(
     name: string,
@@ -20,7 +22,8 @@ class ConwayError extends Error implements IConwayError {
     contextsChunk: string,
     message: string,
     emit: EmitFn,
-    originalError?: OriginalError
+    originalError?: OriginalError,
+    extendedParams?: ExtendedParams
   ) {
     super(message);
     this.name = name;
@@ -28,6 +31,7 @@ class ConwayError extends Error implements IConwayError {
     this.contextsChunk = contextsChunk;
     this.originalError = originalError;
     this.emit = emit;
+    this.extendedParams = extendedParams;
   }
 
   emit: EmitFn;
@@ -46,8 +50,14 @@ export function isConwayError(error: unknown): error is IConwayError {
 
 function createErrorClass(name: string, rootContext: string) {
   return class extends ConwayError {
-    constructor(contextsChunk: string, message: string, emit: EmitFn, originalError?: OriginalError) {
-      super(name, rootContext, contextsChunk, message, emit, originalError);
+    constructor(
+      contextsChunk: string,
+      message: string,
+      emit: EmitFn,
+      originalError?: OriginalError,
+      extendedParams?: ExtendedParams
+    ) {
+      super(name, rootContext, contextsChunk, message, emit, originalError, extendedParams);
     }
   };
 }
@@ -193,7 +203,8 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
           contextName,
           createContextedMessage(contextName, featureName, message + messagePostfix),
           emit,
-          options?.originalError
+          options?.originalError,
+          options?.extendedParams
         );
 
         return error;
