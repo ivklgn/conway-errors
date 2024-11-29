@@ -160,3 +160,26 @@ const cardPaymentError = paymentErrorContext.feature("CardPayment", {
 const error = cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { a: 1 } });
 error.emit({ extendedParams: { logLevel: "fatal" } })
 ```
+
+## Contributors
+
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top">
+        <a href="https://github.com/alex-knyazev">
+          <img src="https://github.com/alex-knyazev.png" width="100px;" alt="Alexander Knyazev" />
+          <br />
+          <sub><b>Alexander Knyazev</b></sub></a
+        >
+      </td>
+      <td align="center" valign="top">
+        <a href="https://github.com/AlexMubarakshin">
+          <img src="https://github.com/AlexMubarakshin.png" width="100px;" alt="Alex Mubarakshin" />
+          <br />
+          <sub><b>Alex Mubarakshin</b></sub></a
+        >
+      </td>
+    </tr>
+  </tbody>
+</table>
