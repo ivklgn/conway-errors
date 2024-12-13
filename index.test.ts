@@ -27,6 +27,7 @@ test("error types throw always mapped errors", () => {
   } catch (err: any) {
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Feature: ErrorMessage");
+    assert.is(err.feature, "Feature");
   }
 
   try {
@@ -34,6 +35,7 @@ test("error types throw always mapped errors", () => {
   } catch (err: any) {
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Feature: ErrorMessage");
+    assert.is(err.feature, "Feature");
   }
 });
 
