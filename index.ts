@@ -4,6 +4,7 @@
 export interface IConwayError extends Error {
   rootContext: string;
   contextsChunk: string;
+  feature: string;
   originalError?: OriginalError;
   extendedParams?: ExtendedParams;
 
@@ -15,6 +16,8 @@ class ConwayError extends Error implements IConwayError {
   readonly contextsChunk: string;
   readonly originalError?: OriginalError;
   readonly extendedParams?: ExtendedParams;
+
+  feature = "";
 
   constructor(
     name: string,
@@ -206,6 +209,8 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
           options?.originalError,
           options?.extendedParams
         );
+
+        error.feature = featureName;
 
         return error;
       };
