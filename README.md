@@ -119,6 +119,46 @@ const oauthError = oauthErrorContext.feature("OAuthError");
 // ...
 ```
 
+### Modeling Errors relative to Project Team Structure
+
+For associating errors with teams, you can use `extendedParams`.
+
+```ts
+import { createError } from "conway-errors";
+
+// (1) Configuration
+const createErrorContext = createError([
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" },
+  // ...
+] as const);
+
+// (2) Creating the root context
+const errorContext = createErrorContext("MyProject");
+
+// (3) Creating subcontexts
+const authErrorContext = errorContext.subcontext("Auth", { extendedParams: { team: "Platform Team" } });
+const searchErrorContext = errorContext.subcontext("Search", { extendedParams: { team: "User Experience Team" } });
+```
+
+An alternative approach is to create root contexts or subcontexts for each team:
+
+```ts
+import { createError } from "conway-errors";
+
+// (1) Configuration
+const createErrorContext = createError([
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" },
+  // ...
+] as const);
+
+// (2) Creating a root context for each team
+const platformTeamErrorContext = createErrorContext("PlatformTeam");
+const monetizationTeamErrorContext = createErrorContext("MonetizationTeam");
+```
+
+
 ## Additional configuration
 
 ### Overriding the error throwing function
