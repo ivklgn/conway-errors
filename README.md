@@ -3,9 +3,22 @@
 [![npm version](https://badge.fury.io/js/conway-errors.svg)](https://badge.fury.io/js/conway-errors)
 [![Downloads](https://img.shields.io/npm/dm/conway-errors.svg)](https://www.npmjs.com/package/conway-errors)
 
-Effortlessly create a structured error hierarchy with a minimal API, no class inheritance needed
+[RU Translation](README_RU.md)
 
-[Go to russian documentation](README_RU.md)
+A library to simplify the creation, structuring, and throwing of errors
+
+1. Simple and minimalist API for creating error contexts
+2. Configurable readable error messages
+3. Adding arbitrary attributes for detailed error information
+
+```sh
+ConwayError [BackendLogicError]: PaymentForm/APIError/APIPaymentError: Payment already processed
+    at createNewErrorObject (/project/index.ts:205:23)
+    at Object.<anonymous> (/project/index.test.ts:26:1)
+    at Module._compile (node:internal/modules/cjs/loader:1740:14)
+    at Module.m._compile (/project/node_modules/ts-node/src/index.ts:1618:23)
+    at node:internal/modules/cjs/loader:1905:10
+```
 
 ## Installation
 
@@ -15,96 +28,131 @@ npm install conway-errors
 
 ## Usage
 
-### Simple Example
+### Single root context for the entire project
 
 ```ts
-import { createError } from "conway-errors"; 
+import { createError } from "conway-errors";
 
-// (1) Create the root context, where the base error types are defined
+// (1) Configuration
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
 ] as const);
 
-// (2) Create any number of contexts, for example, divided by team or context
-const errorAuthTeamContext = createErrorContext("AuthTeamContext");
-const errorPaymentTeamContext = createErrorContext("PaymentTeamContext");
+// (2) Creating the root context
+const errorContext = createErrorContext("MyProject");
 
-// (3) Define specific implementations based on features
-const oauthError = errorAuthTeamContext.feature("OauthError");
-const paymentError = errorPaymentTeamContext.feature("PaymentError");
+// (3) Creating nested contexts
+const apiErrorContext = errorContext.subcontext("APIError");
+const authErrorContext = errorContext.subcontext("AuthError");
+
+// (4) Creating error objects
+const oauthError = authErrorContext.feature("OauthError");
+const apiPaymentError = apiErrorContext.feature("APIPaymentError");
 
 // (4) Example of throwing errors
 throw oauthError("FrontendLogicError", "User not found");
-throw paymentError("BackendLogicError", "Payment already processed");
+throw apiPaymentError("BackendLogicError", "Payment already processed");
 
-// (5) Example of emitting thrown errors
-try {
-  throw oauthError("FrontendLogicError", "User not found");
-}
-catch(error) {
-  if (isConwayError(error)) {
-    error.emit();
-  }
-}
-
-// (6) You also can emit error without throwing
+// (5) Alternative: logging an error without throwing
 oauthError("FrontendLogicError", "User not found").emit();
 ```
 
-### Nested Contexts
+### Multiple root error contexts
+
+In this example, we consider creating multiple root contexts for error hierarchy in the application network layer
 
 ```ts
-import { createError } from "conway-errors"; 
+import { createError } from "conway-errors";
 
-// (1) Create the root context, where the base error types are defined
-const createErrorContext = createError([
+// (1) Configuration, error types can be related to technical details:
+const createErrorAPIContext = createError([
+  { errorType: "MissingRequiredHeader" },
+  { errorType: "InvalidInput" },
+  { errorType: "InternalError" },
+  // ...
+] as const);
+
+// (2) Creating root contexts (you can define the hierarchy logic yourself)
+const authAPIErrorContext = createErrorAPIContext("AuthAPI");
+const stockAPIErrorContext = createErrorAPIContext("StockAPI");
+
+// (3) Creating error objects without subcontexts
+const apiLoginError = authAPIErrorContext.feature("APILoginError"); 
+const apiRegisterError = authAPIErrorContext.feature("APIRegisterError"); 
+const apiStockSearchError = stockAPIErrorContext.feature("APIStockSearchError");
+
+// (4) Throwing errors (example: network layer / service layer)
+throw apiLoginError("InternalError", "Unexpected error");
+throw apiRegisterError("InvalidInput", "Invalid credentials");
+apiStockSearchError("MissingRequiredHeader", "Application Id not found").emit();
+```
+
+### Multiple root errors
+
+```ts
+import { createError } from "conway-errors";
+
+// (1) Error configuration #1 for payment operations
+const createMonetizationErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
 ] as const);
 
-// (2) Create any number of contexts, for example, divided by team or context
-const authTeamErrorContext = createErrorContext("AuthTeamContext");
+// (2) Error configuration #2 for authorization
+const createAuthErrorContext = createError([
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" },
+] as const);
 
-// (3) Create any number of nested contexts
-const socialAuthErrorContext = authTeamErrorContext.subcontext("SocialAuth");
-const phoneAuthErrorContext = authTeamErrorContext.subcontext("PhoneAuth");
+// (3) Modeling errors for payment operations
+const paymentErrorContext = createMonetizationErrorContext("Payment");
+const recurentPaymentErrorContext = paymentErrorContext.subcontext("RecurentPayment");
+const recurentPaymentError = recurentPaymentErrorContext.feature("RecurentPaymentError");
 
-// (3) Define specific implementations based on features
-const facebookError = socialAuthErrorContext.feature("FacebookAuth");
-const smsSendError = phoneAuthErrorContext.feature("SmsSender");
+const refundErrorContext = paymentErrorContext.subcontext("Refund");
+const refundError = refundErrorContext.feature("RefundError");
 
-// (4) Example of throwing errors
-throw facebookError("FrontendLogicError", "Account inactive");
-throw smsSendError("BackendLogicError", "Limit exceed");
+// (4) Modeling errors for authorization
+const oauthErrorContext = createAuthErrorContext("OAuth");
+const oauthError = oauthErrorContext.feature("OAuthError");
+// ...
 ```
 
-### Overriding the Error Emitting Function
+## Additional configuration
+
+### Overriding the error throwing function
 
 Example for integration with Sentry (<https://sentry.io/>)
 
 ```ts
-import { createError } from "conway-errors"; 
+import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" }
 ] as const, {
-  // use sentry to log errors instead of default behavior with console.error()
+  // overriding the error "logging" (emitting) behavior
   handleEmit: (err) => {
     Sentry.captureException(err);
   },
 });
+
+const context = createErrorContext("Context");
+const featureError = context.feature("Feature");
+
+// emit() will call captureException:
+featureError("FrontendLogicError", "My error message").emit();
 ```
 
-### Extending Base Error Messages
+### Adding a Separator for Error Messages
 
 ```ts
 import { createError } from "conway-errors";
 
 const createErrorContext = createError([
-  { errorType: "FrontendLogicError", createMessagePostfix: (originalError) => " >>> " + (originalError as Error).message },
+  { errorType: "FrontendLogicError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
   { errorType: "BackendLogicError" },
 ] as const);
 
@@ -114,16 +162,18 @@ const featureError = subcontext.feature("Feature");
 try {
   uploadAvatar();
 } catch (err) {
-  featureError("FrontendLogicError", "Failed upload avatar", err).emit();
-  // The following error will be emitted:
+  throw featureError("FrontendLogicError", "Failed upload avatar", err);
+  // The thrown error will be:
   // FrontendLogicError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
 }
 ```
 
-### Passing Extended Parameters to Contexts and Errors
+### Passing Additional Parameters to Contexts and Error Objects
+
+You can pass an object with arbitrary parameters as `extendedParams` in the options. It is important to note that parameters with the same name in `extendedParams` will be overwritten in subcontexts and error objects.
 
 ```ts
-import { createError } from "conway-errors"; 
+import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError(["FrontendLogicError", "BackendLogicError"], {
@@ -141,7 +191,6 @@ const createErrorContext = createError(["FrontendLogicError", "BackendLogicError
         subdomain,
         location,
       });
-      
 
       scope.setLevel(logLevel);
       Sentry.captureException(err);
@@ -158,10 +207,10 @@ const cardPaymentError = paymentErrorContext.feature("CardPayment", {
 });
 
 const error = cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { a: 1 } });
-error.emit({ extendedParams: { logLevel: "fatal" } })
+error.emit({ extendedParams: { logLevel: "fatal" } });
 ```
 
-## Contributors
+## Acknowledgment for Contributions
 
 <table>
   <tbody>
@@ -175,9 +224,9 @@ error.emit({ extendedParams: { logLevel: "fatal" } })
       </td>
       <td align="center" valign="top">
         <a href="https://github.com/AlexMubarakshin">
-          <img src="https://github.com/AlexMubarakshin.png" width="100px;" alt="Alex Mubarakshin" />
+          <img src="https://github.com/AlexMubarakshin.png" width="100px;" alt="Alexander Mubarakshin" />
           <br />
-          <sub><b>Alex Mubarakshin</b></sub></a
+          <sub><b>Alexander Mubarakshin</b></sub></a
         >
       </td>
     </tr>
