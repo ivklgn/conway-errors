@@ -115,6 +115,9 @@ type Brand<T, B> = T & { __brand: B };
 
 type ErrorSubcontext<Name extends string, ErrorType extends string> = Brand<Subcontext<Name, ErrorType>, Name>;
 type ErrorFeature<Name extends string, ErrorType extends string> = Brand<CreateErrorFn<ErrorType>, Name>;
+export type AnyFeatureOfSubcontext<S> = S extends ErrorSubcontext<infer Name, infer ErrorType>
+  ? ErrorFeature<`${Name}/${string}`, ErrorType>
+  : never;
 
 type Subcontext<Name extends string, ErrorType extends string> = {
   /**
@@ -138,7 +141,7 @@ type Subcontext<Name extends string, ErrorType extends string> = {
   feature: <const FeatureName extends string>(
     featureName: FeatureName,
     featureContextExtendedParams?: ExtendedParams
-  ) => ErrorFeature<FeatureName, ErrorType>;
+  ) => ErrorFeature<`${Name}/${FeatureName}`, ErrorType>;
 };
 
 /**
@@ -194,11 +197,11 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
       };
     }
 
-    function _createErrorFeature<const FeatureName extends string>(
+    function _createErrorFeature<const ContextName extends string, const FeatureName extends string>(
       featureName: FeatureName,
-      contextName: string,
+      contextName: ContextName,
       featureContextExtendedParams: ExtendedParams = {}
-    ): ErrorFeature<FeatureName, ErrorTypes[number]["errorType"]> {
+    ): ErrorFeature<`${ContextName}/${FeatureName}`, ErrorTypes[number]["errorType"]> {
       const createNewErrorObject: CreateErrorFn<ErrorTypes[number]["errorType"]> = (
         errorType,
         message: string,
@@ -228,8 +231,8 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
         return error;
       };
 
-      Object.assign(createNewErrorObject, { __brand: featureName });
-      return createNewErrorObject as ErrorFeature<FeatureName, ErrorTypes[number]["errorType"]>;
+      Object.assign(createNewErrorObject, { __brand: `${contextName}/${featureName}` as const });
+      return createNewErrorObject as ErrorFeature<`${ContextName}/${FeatureName}`, ErrorTypes[number]["errorType"]>;
     }
 
     return _createErrorContext(contextName);
