@@ -1,9 +1,9 @@
 {
   "name": "conway-errors",
   "source": "index.ts",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "private": false,
-  "description": "Create errors with Conway's law",
+  "description": "Simplify the creation, structuring and throwing of errors",
   "exports": {
     "types": "./dist/index.d.ts",
     "require": "./dist/index.js",
@@ -31,8 +31,19 @@
     "/dist",
     "/package.json"
   ],
-  "keywords": [],
-  "author": "Kalagin Ivan",
+  "keywords": [
+    "errors",
+    "typescript",
+    "error-handling",
+    "custom-errors",
+    "structured-errors",
+    "error-utils",
+    "backend",
+    "exceptions",
+    "js-errors",
+    "application-error"
+  ],
+  "author": "ivklgn",
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "1.8.3",

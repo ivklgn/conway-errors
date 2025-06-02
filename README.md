@@ -250,6 +250,34 @@ const error = cardPaymentError("BackendLogicError", "Payment failed", { extended
 error.emit({ extendedParams: { logLevel: "fatal" } });
 ```
 
+### Helper Functions and Types
+
+#### AnyFeatureOfSubcontext
+
+Allows you to explicitly specify the type for any feature of the given subcontext.
+
+```ts
+import { createError } from "conway-errors";
+
+const createErrorContext = createError([
+  { errorType: "FrontendLogicError" },
+  { errorType: "BackendLogicError" },
+] as const);
+
+const context = createErrorContext("Context");
+const subcontext = context.subcontext("Subcontext");
+
+const featureError1 = context.feature("Feature");
+const featureError2 = subcontext.feature("Feature");
+
+function customErrorThrower(featureError: AnyFeatureOfSubcontext<typeof subcontext>) {
+  // ...
+}
+
+customErrorThrower(featureError1); // error
+customErrorThrower(featureError2); // ok
+```
+
 ## Acknowledgment for Contributions
 
 <table>

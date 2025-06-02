@@ -2,7 +2,7 @@ import { test } from "uvu";
 import { snoop } from "snoop";
 import * as assert from "uvu/assert";
 
-import { createError, isConwayError, type IConwayError } from "./index";
+import { createError, isConwayError } from "./index";
 
 test("without error types will throw always UnknownError", () => {
   const createErrorContext = createError();
