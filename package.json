@@ -1,9 +1,9 @@
 {
   "name": "conway-errors",
   "source": "index.ts",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "private": false,
-  "description": "Simplify the creation, structuring and throwing of errors",
+  "description": "A convenient primitive for creating, structing and throwing errors",
   "exports": {
     "types": "./dist/index.d.ts",
     "require": "./dist/index.js",
@@ -34,6 +34,7 @@
   "keywords": [
     "errors",
     "typescript",
+    "javascript",
     "error-handling",
     "custom-errors",
     "structured-errors",
@@ -41,7 +42,8 @@
     "backend",
     "exceptions",
     "js-errors",
-    "application-error"
+    "application-error",
+    "tracing"
   ],
   "author": "ivklgn",
   "license": "MIT",

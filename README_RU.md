@@ -5,11 +5,15 @@
 
 [Английский перевод](README.md)
 
-Библиотека для упрощения создания, структурирования и выброса ошибок
+JS/TS библиотека для создания структурированных и читабельных ошибок
 
-1. Простой и минималистичный API для создания контекстов ошибок
-2. Возможность конфигурации читабельного сообщения об ошибке
-3. Добавление произвольных атрибутов для детализации ошибки
+## Почему conway-errors?
+
+- **🎯 Структурированная иерархия ошибок**: Организуйте ошибки по контексту и функционалу
+- **📝 Читаемые сообщения об ошибках**: Понятные, контекстуальные сообщения с полной информацией
+- **🔧 Гибкая конфигурация**: Полный контроль выброса и логирования
+- **🏗️ Разделение зон ответственности**: Изящный программный API для разбивки по доменам и командам
+- **📊 Интеграция с трекерами**: Удобное подключение мониторинга ошибок, таких как Sentry, Posthog
 
 ```sh
 ConwayError [BackendLogicError]: PaymentForm/APIError/APIPaymentError: Payment already processed
@@ -20,149 +24,209 @@ ConwayError [BackendLogicError]: PaymentForm/APIError/APIPaymentError: Payment a
     at node:internal/modules/cjs/loader:1905:10
 ```
 
-## Установка
+## Быстрый старт
+
+### 1. Установка
 
 ```bash
 npm install conway-errors
 ```
 
-## Использование
-
-### Один корневой контекст для всего проекта
+### 2. Базовая настройка
 
 ```ts
 import { createError } from "conway-errors";
 
-// (1) Конфигурация
+// Определите типы ошибок
+const createErrorContext = createError([
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
+] as const);
+
+// Создайте ваш первый контекст ошибок
+const appErrors = createErrorContext("MyApp");
+```
+
+### 3. Создание и выброс ошибок
+
+```ts
+// Создайте ошибку
+const loginError = appErrors.feature("LoginError");
+
+throw loginError("ValidationError", "Неверный формат email");
+// Результат: ValidationError: MyApp/LoginError: Неверный формат email
+```
+
+## Примеры
+
+### Простая структура
+
+```ts
+import { createError } from "conway-errors";
+
+// Настройте типы ошибок для вашего приложения
+const createErrorContext = createError([
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
+  { errorType: "BusinessLogicError" },
+] as const);
+
+// Создайте корневой контекст ошибок приложения
+const appErrors = createErrorContext("ECommerceApp");
+
+// Создайте конкретные ошибки
+const userRegistration = appErrors.feature("UserRegistration");
+const paymentProcessing = appErrors.feature("PaymentProcessing");
+
+// Выбрасывайте контекстуальные ошибки
+try {
+  // Какая-то логика валидации
+  throw userRegistration("ValidationError", "Email уже существует");
+} catch (error) {
+  console.log(error.message);
+  // Вывод: "ValidationError: ECommerceApp/UserRegistration: Email уже существует"
+}
+
+// Логируйте ошибки без выброса
+paymentProcessing("NetworkError", "Таймаут платежного шлюза").emit();
+```
+
+### Иерархическая организация ошибок
+
+```ts
+import { createError } from "conway-errors";
+
+// Настройка конфигурации ошибок
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
 ] as const);
 
-// (2) Создание корневого конекста
+// Создание корневого контекста
 const errorContext = createErrorContext("MyProject");
 
-// (3) Создание вложенных контекстов
+// Создание организованных подконтекстов
 const apiErrorContext = errorContext.subcontext("APIError");
 const authErrorContext = errorContext.subcontext("AuthError");
 
-// (4) Создание объектов ошибок
+// Создание конкретных функций ошибок
 const oauthError = authErrorContext.feature("OauthError");
 const apiPaymentError = apiErrorContext.feature("APIPaymentError");
 
-// (4) Пример выброса ошибок
-throw oauthError("FrontendLogicError", "User not found");
-throw apiPaymentError("BackendLogicError", "Payment already processed");
+// Выброс ошибок
+throw oauthError("FrontendLogicError", "Пользователь не найден");
+// Результат: "FrontendLogicError: MyProject/AuthError/OauthError: Пользователь не найден"
 
-// (5) Альтернативный вариант: логирование ошибки без throw
-oauthError("FrontendLogicError", "User not found").emit();
+throw apiPaymentError("BackendLogicError", "Платеж уже обработан");
+// Результат: "BackendLogicError: MyProject/APIError/APIPaymentError: Платеж уже обработан"
 ```
 
-### Несколько корневых контекстов ошибок
-
-В данном примере рассмотрим создание нескольких корневых контекстов для иерархии ошибок в сетевом слое
+### Отдельные корневые контексты
 
 ```ts
 import { createError } from "conway-errors";
 
-// (1) Конфигурация, типы ошибок могут быть связаны с техническими подробностями:
-const createErrorAPIContext = createError([
+// Настройка типов ошибок, специфичных для API
+const createAPIErrorContext = createError([
   { errorType: "MissingRequiredHeader" },
   { errorType: "InvalidInput" },
   { errorType: "InternalError" },
-  // ...
+  { errorType: "RateLimitExceeded" },
 ] as const);
 
-// (2) Создание корневых конекстов (вы можете сами определить логику иерархии)
-const authAPIErrorContext = createErrorAPIContext("AuthAPI");
-const stockAPIErrorContext = createErrorAPIContext("StockAPI");
+// Создание контекстов ошибок для конкретных сервисов
+const authAPIErrors = createAPIErrorContext("AuthAPI");
+const stockAPIErrors = createAPIErrorContext("StockAPI");
 
-// (3) Cоздание обьектов ошибок возможно без подконтекстов
-const apiLoginError = authAPIErrorContext.feature("APILoginError"); 
-const apiRegisterError = authAPIErrorContext.feature("APIRegisterError"); 
-const apiStockSearchError = stockAPIErrorContext.feature("APIStockSearchError");
+// Создание обработчиков ошибок для конкретных функций
+const loginError = authAPIErrors.feature("LoginError");
+const registerError = authAPIErrors.feature("RegisterError");
+const stockSearchError = stockAPIErrors.feature("StockSearchError");
 
-// (4) Выбрасывание ошибок (пример: сетевой слой / слой сервисов)
-throw apiLoginError("InternalError", "Unexpected error");
-throw apiRegisterError("InvalidInput", "Invalid credentials");
-apiStockSearchError("MissingRequiredHeader", "Application Id not found").emit();
+// Обработка различных сценариев ошибок
+try {
+  // Логика API вызова
+  throw loginError("InvalidInput", "Неверный формат email");
+} catch (error) {
+  // Обработка ошибок валидации входа
+}
+
+// Логирование ошибок для мониторинга
+stockSearchError("RateLimitExceeded", "Превышена квота API").emit();
 ```
 
-### Несколько корневых ошибок
+### Доменно-ориентированная организация ошибок
 
 ```ts
 import { createError } from "conway-errors";
 
-// (1) Конфигурация ошибок #1 для платежных операций
-const createMonetizationErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" },
+// Отдельные наборы типов для разных контекстов
+const createPaymentErrors = createError([
+  { errorType: "ValidationError" },
+  { errorType: "ProcessingError" },
+  { errorType: "GatewayError" },
 ] as const);
 
-// (2) Конфигурация ошибок #2 для авторизации
-const createAuthErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" },
+const createAuthErrors = createError([
+  { errorType: "AuthenticationError" },
+  { errorType: "AuthorizationError" },
+  { errorType: "TokenError" },
 ] as const);
 
-// (3) Моделируем ошибки для платежных операций
-const paymentErrorContext = createMonetizationErrorContext("Payment");
-const recurentPaymentErrorContext = paymentErrorContext.subcontext("RecurentPayment");
-const recurentPaymentError = recurentPaymentErrorContext.feature("RecurentPaymentError");
+// Ошибки домена платежей
+const paymentErrors = createPaymentErrors("Payment");
+const recurringPayments = paymentErrors.subcontext("Recurring");
+const refunds = paymentErrors.subcontext("Refund");
 
-const refundErrorContext = createPaymentErrorContext("Refund");
-const refundError = refundErrorContext.feature("RefundError");
+const recurringError = recurringPayments.feature("RecurringPaymentError");
+const refundError = refunds.feature("RefundError");
 
-// (4) Моделируем ошибки для авторизации
-const oauthErrorContext = createAuthErrorContext("OAuth");
-const oauthError = oauthErrorContext.feature("OAuthError");
-// ...
+// Ошибки домена аутентификации
+const authErrors = createAuthErrors("Authentication");
+const oauthError = authErrors.feature("OAuthError");
+
+// Примеры использования
+throw recurringError("ProcessingError", "Карта отклонена для регулярного платежа");
+throw oauthError("TokenError", "OAuth токен истек");
 ```
 
-### Моделируем ошибки относительно структуры команд проекта
+## Продвинутое использование
 
-для ассоциации с командами можно использовать extendedParams
+### Организация ошибок по командам
+
+Связывайте ошибки с команд для лучшей отладки:
 
 ```ts
 import { createError } from "conway-errors";
 
-// (1) Конфигурация
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
-  // ...
 ] as const);
 
-// (2) Создание корневого конекста
-const errorContext = createErrorContext("MyProject");
+const projectErrors = createErrorContext("MyProject");
 
-// (3) Создание подконтекстов
-const authErrorContext = errorContext.subcontext("Auth", { extendedParams: { team: "Platform Team" } });
-const searchErrorContext = errorContext.subcontext("Search", { extendedParams: { team: "User Expirience Team" } });
+// Метод 1: Использование extendedParams для атрибуции команды (рекомендуется)
+const authErrors = projectErrors.subcontext("Auth", {
+  extendedParams: { team: "Platform Team", component: "Authentication" }
+});
+
+const searchErrors = projectErrors.subcontext("Search", {
+  extendedParams: { team: "User Experience Team", component: "Search" }
+});
+
+// Метод 2: Корневые контексты для конкретных команд
+const platformErrors = createErrorContext("PlatformTeam");
+const uxErrors = createErrorContext("UXTeam");
 ```
 
-Альтернативный вариант - корневые контексты или подконтексты для команд:
+## Параметры конфигурации
 
-```ts
-import { createError } from "conway-errors";
+### Интеграция с мониторингом ошибок
 
-// (1) Конфигурация
-const createErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" },
-  // ...
-] as const);
+#### Интеграция с Sentry
 
-// (2) Создание корневого конекста для каждой команды
-const platformTeamErrorContext = createErrorContext("PlatformTeam");
-const monetizationTeamErrorContext = createErrorContext("MonetizationTeam");
-```
-
-## Дополнительная конфигурация
-
-### Переопределение функции выброса ошибки
-
-Пример для интеграции с Sentry (<https://sentry.io/>)
+Перегрузка `.emit()` для отправки событий в Sentry:
 
 ```ts
 import { createError } from "conway-errors";
@@ -172,112 +236,201 @@ const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" }
 ] as const, {
-  // переопределяем поведение выброса ошибки
+  // Пользовательская обработка ошибок для мониторинга
   handleEmit: (err) => {
     Sentry.captureException(err);
   },
 });
 
-const context = createErrorContext("Context");
-const featureError = context.feature("Feature");
+const appErrors = createErrorContext("MyApp");
+const userError = appErrors.feature("UserAction");
 
-// emit() вызовет captureException:
-featureError("FrontendLogicError", "My error message").emit();
+// Автоматически логирует в Sentry при использовании emit()
+userError("FrontendLogicError", "Валидация формы не прошла").emit();
 ```
 
-### Добавление разделителя для текста ошибки
+#### Интеграция с PostHog
+
+Интегрируйтесь с PostHog для отслеживания ошибок с пользовательской аналитикой:
+
+```ts
+import { createError } from "conway-errors";
+import posthog from "posthog-js";
+
+const createErrorContext = createError([
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
+  { errorType: "BusinessLogicError" }
+] as const, {
+  extendedParams: {
+    userId: null,
+    sessionId: null,
+    feature: null
+  },
+  handleEmit: (err, extendedParams) => {
+    const { userId, sessionId, feature, severity = "error" } = extendedParams;
+    
+    // Захват исключения с PostHog
+    posthog.captureException(err, {
+      user_id: userId,
+      session_id: sessionId,
+      feature: feature,
+      severity: severity,
+      error_context: err.name, // Путь контекста Conway error
+      timestamp: Date.now()
+    });
+  },
+});
+
+const checkoutErrors = createErrorContext("Checkout", {
+  extendedParams: { feature: "payment_flow" }
+});
+
+const paymentError = checkoutErrors.feature("PaymentProcessing");
+
+// Ошибка с пользовательским контекстом для аналитики PostHog
+paymentError("NetworkError", "Таймаут платежного шлюза").emit({
+  extendedParams: {
+    userId: "user-123",
+    sessionId: "session-456",
+    severity: "critical"
+  }
+});
+```
+
+### Пользовательское форматирование сообщений об ошибках
 
 ```ts
 import { createError } from "conway-errors";
 
 const createErrorContext = createError([
-  { errorType: "FrontendLogicError", createMessagePostfix: (originalError) => " >>> " + originalError?.message },
+  {
+    errorType: "FrontendLogicError",
+    createMessagePostfix: (originalError) => " >>> " + originalError?.message
+  },
   { errorType: "BackendLogicError" },
 ] as const);
 
-const context = createErrorContext("Context");
-const featureError = subcontext.feature("Feature");
+const context = createErrorContext("FileUpload");
+const uploadError = context.feature("AvatarUpload");
 
 try {
-  uploadAvatar();
+  await uploadAvatar();
 } catch (err) {
-  throw featureError("FrontendLogicError", "Failed upload avatar", err);
-  // будет выброшена ошибка:
-  // FrontendLogicError("Context/Feature: Failed upload avatar >>> Server upload avatar failed")
+  throw uploadError("FrontendLogicError", "Не удалось загрузить аватар", err);
+  // Результат: "FrontendLogicError: FileUpload/AvatarUpload: Не удалось загрузить аватар >>> Таймаут сети"
 }
 ```
 
-### Передача дополнительных параметров в контексты и обьекты ошибок
+### Расширенные параметры и метаданные
 
-В options можно передать обьект с произвольными параметрами `extendedParams`. Важно помнить что одноименные параметры extendendParams 
-в подконтекстах и обьектах ошибок будут перезаписываться
+Добавляйте пользовательские метаданные к ошибкам для улучшения отладки и мониторинга:
 
 ```ts
 import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
-const createErrorContext = createError(["FrontendLogicError", "BackendLogicError"], {
-  extendedParams: {
-    isSSR: typeof window === "undefined",
-    projectName: "My cool frontend"
-  },
-  handleEmit: (err, extendedParams) => {
-    const { isSSR, projectName, logLevel = "error", location, subdomain } = extendedParams;
+const createErrorContext = createError(
+  ["FrontendLogicError", "BackendLogicError"],
+  {
+    extendedParams: {
+      environment: process.env.NODE_ENV,
+      version: "1.2.3"
+    },
+    handleEmit: (err, extendedParams) => {
+      const { environment, version, severity = "error", userId, action } = extendedParams;
 
-    Sentry.withScope(scope => {
-      scope.setTags({
-        isSSR,
-        projectName,
-        subdomain,
-        location,
+      Sentry.withScope(scope => {
+        scope.setTags({ environment, version, action });
+        scope.setUser({ id: userId });
+        scope.setLevel(severity);
+        Sentry.captureException(err);
       });
+    },
+  }
+);
 
-
-      scope.setLevel(logLevel);
-      Sentry.captureException(err);
-    });
-  },
+const paymentErrors = createErrorContext("Payment", {
+  extendedParams: { service: "stripe" }
 });
 
-const paymentErrorContext = createErrorContext("Payment", {
-  subdomain: "Payment",
+const cardPayment = paymentErrors.feature("CardPayment", {
+  extendedParams: { region: "us-east-1" }
 });
 
-const cardPaymentError = paymentErrorContext.feature("CardPayment", {
-  location: "USA",
+// Ошибка с контекстно-специфичными метаданными
+const error = cardPayment("BackendLogicError", "Сбой обработки платежа");
+error.emit({
+  extendedParams: {
+    userId: "user-123",
+    action: "checkout",
+    severity: "critical"
+  }
 });
-
-const error = cardPaymentError("BackendLogicError", "Payment failed", { extendedParams: { a: 1 } });
-error.emit({ extendedParams: { logLevel: "fatal" } })
 ```
 
-### Вспомогательные функции и типы
+## Поддержка TypeScript
+
+### Утилиты типов
 
 #### AnyFeatureOfSubcontext
 
-Позволяет явно указать тип для любой feature указанного подконтекста.
+Типобезопасная обработка ошибок с явными ограничениями подконтекста:
 
 ```ts
-import { createError } from "conway-errors";
+import { createError, AnyFeatureOfSubcontext } from "conway-errors";
 
 const createErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" },
+  { errorType: "ValidationError" },
+  { errorType: "ProcessingError" },
 ] as const);
 
-const context = createErrorContext("Context");
-const subcontext = context.subcontext("Subcontext");
+const appErrors = createErrorContext("App");
+const authErrors = appErrors.subcontext("Auth");
 
-const featureError1 = context.feature("Feature");
-const featureError2 = subcontext.feature("Feature");
+const loginError = authErrors.feature("LoginError");
+const generalError = appErrors.feature("GeneralError");
 
-function customErrorThrower(featureError: AnyFeatureOfSubcontext<typeof subcontext>) {
-  // ...
+// Типобезопасный обработчик ошибок для функций, специфичных для аутентификации
+function handleAuthError(errorFeature: AnyFeatureOfSubcontext<typeof authErrors>) {
+  // Принимает только функции из подконтекста authErrors
 }
 
-customErrorThrower(featureError1); // error
-customErrorThrower(featureError2); // ok
+handleAuthError(loginError);    // ✅ Валидно
+handleAuthError(generalError);  // ❌ Ошибка TypeScript
 ```
+
+## Устранение неполадок
+
+### Распространенные проблемы
+
+**В: Сообщения об ошибках не показывают полный путь контекста**
+
+О: Убедитесь, что вы используете `as const` при определении типов ошибок:
+
+```ts
+// ✅ Правильно
+const createErrorContext = createError(["ValidationError"] as const);
+
+// ❌ Неправильно
+const createErrorContext = createError(["ValidationError"]);
+```
+
+**В: Ошибки TypeScript при использовании пользовательских типов ошибок**
+
+О: Обеспечьте правильную типизацию с const assertions и избегайте смешивания строковых литералов с объектами:
+
+```ts
+// ✅ Правильно
+const createErrorContext = createError([
+  { errorType: "CustomError" },
+  { errorType: "AnotherError" }
+] as const);
+```
+
+**В: Расширенные параметры не появляются в обработчиках ошибок**
+
+О: Расширенные параметры наследуются через иерархию. Дочерние контексты переопределяют родительские параметры с тем же ключом.
 
 ## Благодарность за вклад
 
