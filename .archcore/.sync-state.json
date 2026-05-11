@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "files": {},
+  "relations": [
+    {
+      "source": "conventions/project-stack.rule.md",
+      "target": "onboarding/running-the-project.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "specs/conway-errors-api.spec.md",
+      "target": "decisions/branded-types-for-context.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "specs/conway-errors-api.spec.md",
+      "target": "decisions/zero-runtime-dependencies.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "conventions/project-stack.rule.md",
+      "target": "decisions/zero-runtime-dependencies.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "guides/structuring-errors-by-app-type.guide.md",
+      "target": "specs/conway-errors-api.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "guides/structuring-errors-by-app-type.guide.md",
+      "target": "decisions/branded-types-for-context.adr.md",
+      "type": "related"
+    }
+  ]
+}

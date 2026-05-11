@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_archcore_archcore__create_document",
+      "mcp__plugin_archcore_archcore__add_relation"
+    ]
+  }
+}
