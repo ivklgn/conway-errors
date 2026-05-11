@@ -14,7 +14,7 @@ Define the canonical, externally visible contract of `conway-errors` so that con
 
 In scope:
 
-- The exported names from `index.ts`: `createError`, `isConwayError`, `IConwayError`, `AnyFeatureOfSubcontext`, `EmitFn`, `OriginalError`, `ExtendedParams`, `CreateErrorOptions`, `ErrorFnOptions`, `ErrorTypeConfig`.
+- The exported names from `index.ts`: `createError`, `isConwayError`, `IConwayError`, `AnyFeatureOfSubcontext`, `EmitFn`, `ExtendedParams`, `CreateErrorOptions`, `ErrorFnOptions`, `ErrorTypeConfig`.
 - The runtime behavior of the chain `createError → (root context) → subcontext → feature → error instance`.
 - The naming convention encoded into `name` and `message` of thrown errors.
 - The `emit()` channel for log-without-throw delivery.
@@ -43,7 +43,6 @@ The single published module `conway-errors` (entry: `dist/index.js` / `dist/inde
 | `IConwayError` | interface | thrown error | Shape of every error instance the library produces. |
 | `AnyFeatureOfSubcontext<S>` | type util | derived | Derive a feature signature from a subcontext type. |
 | `EmitFn` | type | thrown error | Signature of `IConwayError.emit`. |
-| `OriginalError` | type | thrown error / config | Type of `options.originalError` and `IConwayError.originalError`. |
 | `ExtendedParams` | type | thrown error / config | Map shape used everywhere extended params are passed. |
 | `CreateErrorOptions` | type | factory config | `options` argument of `createError`. |
 | `ErrorFnOptions` | type | call-site | `options` argument when invoking a feature. |
@@ -51,7 +50,7 @@ The single published module `conway-errors` (entry: `dist/index.js` / `dist/inde
 
 The exports cluster into two surfaces:
 
-- **Thrown-error surface** — `IConwayError`, `EmitFn`, `OriginalError`, `ExtendedParams`. Consumers writing typed `handleEmit` callbacks or wrappers around thrown errors operate on this surface.
+- **Thrown-error surface** — `IConwayError`, `EmitFn`, `ExtendedParams`. Consumers writing typed `handleEmit` callbacks or wrappers around thrown errors operate on this surface. `originalError` on the instance is typed `unknown` — no dedicated alias is exported; consumers narrow it via `instanceof Error` or structural checks at the use-site.
 - **Factory-config surface** — `CreateErrorOptions`, `ErrorTypeConfig`, `ErrorFnOptions`. Consumers building `createError` configurations programmatically (e.g. extracting them into shared modules) operate on this surface.
 
 ### `createError(errorTypes, options) → createErrorContext`
@@ -85,11 +84,13 @@ interface IConwayError extends Error {
   readonly rootContext: string;
   readonly contextsChunk: string;     // full "/"-joined path of contexts above the feature
   readonly feature: string;
-  readonly originalError?: OriginalError;
-  readonly extendedParams?: ExtendedParams;
-  readonly emit: (extendedParams?) => void;
+  readonly originalError: unknown;
+  readonly extendedParams: ExtendedParams | undefined;
+  readonly emit: EmitFn;
 }
 ```
+
+`originalError` and `extendedParams` are **always own properties** of the instance — when not supplied at the call-site, their value is `undefined`. Consumers MUST distinguish presence with `err.originalError !== undefined`, not `"originalError" in err`.
 
 ## Normative Behavior
 

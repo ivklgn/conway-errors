@@ -5,7 +5,9 @@
 
 [RU Translation](README_RU.md)
 
-JS/TS library for creating structured and readable errors
+JS/TS library for creating structured and readable errors.
+
+> **Upgrading from 3.x?** See [Migrating to 4.0](#migrating-to-40) — error instances are now frozen and read-only.
 
 ## Why conway-errors?
 
@@ -14,14 +16,13 @@ JS/TS library for creating structured and readable errors
 - **🔧 Flexible Configuration**: Full control over throwing and logging
 - **🏗️ Separation of Concerns**: Elegant programmatic API for domain and team separation
 - **📊 Tracker Integration**: Easy integration with error monitoring tools like Sentry, PostHog
+- **🔒 Immutable Errors**: Every error instance is frozen — safe to pass between layers
 
 ```sh
-ConwayError [BackendLogicError]: PaymentForm/APIError/APIPaymentError: Payment already processed
-    at createNewErrorObject (/project/index.ts:205:23)
-    at Object.<anonymous> (/project/index.test.ts:26:1)
-    at Module._compile (node:internal/modules/cjs/loader:1740:14)
-    at Module.m._compile (/project/node_modules/ts-node/src/index.ts:1618:23)
-    at node:internal/modules/cjs/loader:1905:10
+BackendLogicError: MyProject/APIError/APIPaymentError: Payment already processed
+    at createNewErrorObject (/project/dist/index.js:205:23)
+    at handleCheckout (/project/src/checkout.ts:42:11)
+    ...
 ```
 
 ## Quick Start
@@ -50,12 +51,15 @@ const appErrors = createErrorContext("MyApp");
 ### 3. Create and Throw Errors
 
 ```ts
-// Create an error
 const loginError = appErrors.feature("LoginError");
 
 throw loginError("ValidationError", "Invalid email format");
-// Result: ValidationError: MyApp/LoginError: Invalid email format
+// error.name    === "ValidationError"
+// error.message === "MyApp/LoginError: Invalid email format"
+// console.error(error) prints: "ValidationError: MyApp/LoginError: Invalid email format"
 ```
+
+`error.message` carries only the contextual path and the message text. The error-type prefix (`ValidationError:`) is added by the runtime when the error is converted to a string (e.g. `console.error`, `error.toString()`).
 
 ## Examples
 
@@ -64,27 +68,22 @@ throw loginError("ValidationError", "Invalid email format");
 ```ts
 import { createError } from "conway-errors";
 
-// Configure error types for your application
 const createErrorContext = createError([
   { errorType: "ValidationError" },
   { errorType: "NetworkError" },
   { errorType: "BusinessLogicError" },
 ] as const);
 
-// Create your application's root error context
 const appErrors = createErrorContext("ECommerceApp");
 
-// Create specific errors
 const userRegistration = appErrors.feature("UserRegistration");
 const paymentProcessing = appErrors.feature("PaymentProcessing");
 
-// Throw contextual errors
 try {
-  // Some validation logic
   throw userRegistration("ValidationError", "Email already exists");
 } catch (error) {
-  console.log(error.message);
-  // Output: "ValidationError: ECommerceApp/UserRegistration: Email already exists"
+  console.log((error as Error).message);
+  // "ECommerceApp/UserRegistration: Email already exists"
 }
 
 // Log errors without throwing
@@ -96,29 +95,24 @@ paymentProcessing("NetworkError", "Payment gateway timeout").emit();
 ```ts
 import { createError } from "conway-errors";
 
-// Setup error configuration
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
 ] as const);
 
-// Create root context
 const errorContext = createErrorContext("MyProject");
 
-// Create organized subcontexts
 const apiErrorContext = errorContext.subcontext("APIError");
 const authErrorContext = errorContext.subcontext("AuthError");
 
-// Create specific error functions
 const oauthError = authErrorContext.feature("OauthError");
 const apiPaymentError = apiErrorContext.feature("APIPaymentError");
 
-// Throw errors
 throw oauthError("FrontendLogicError", "User not found");
-// Result: "FrontendLogicError: MyProject/AuthError/OauthError: User not found"
+// error.message === "MyProject/AuthError/OauthError: User not found"
 
 throw apiPaymentError("BackendLogicError", "Payment already processed");
-// Result: "BackendLogicError: MyProject/APIError/APIPaymentError: Payment already processed"
+// error.message === "MyProject/APIError/APIPaymentError: Payment already processed"
 ```
 
 ### Separate Root Contexts
@@ -126,7 +120,6 @@ throw apiPaymentError("BackendLogicError", "Payment already processed");
 ```ts
 import { createError } from "conway-errors";
 
-// Configure API-specific error types
 const createAPIErrorContext = createError([
   { errorType: "MissingRequiredHeader" },
   { errorType: "InvalidInput" },
@@ -134,24 +127,18 @@ const createAPIErrorContext = createError([
   { errorType: "RateLimitExceeded" },
 ] as const);
 
-// Create service-specific error contexts
 const authAPIErrors = createAPIErrorContext("AuthAPI");
 const stockAPIErrors = createAPIErrorContext("StockAPI");
 
-// Create feature-specific error handlers
 const loginError = authAPIErrors.feature("LoginError");
-const registerError = authAPIErrors.feature("RegisterError");
 const stockSearchError = stockAPIErrors.feature("StockSearchError");
 
-// Handle different error scenarios
 try {
-  // API call logic
   throw loginError("InvalidInput", "Invalid email format");
 } catch (error) {
   // Handle login validation errors
 }
 
-// Log errors for monitoring
 stockSearchError("RateLimitExceeded", "API quota exceeded").emit();
 ```
 
@@ -160,7 +147,6 @@ stockSearchError("RateLimitExceeded", "API quota exceeded").emit();
 ```ts
 import { createError } from "conway-errors";
 
-// Separate type sets for different contexts
 const createPaymentErrors = createError([
   { errorType: "ValidationError" },
   { errorType: "ProcessingError" },
@@ -173,132 +159,114 @@ const createAuthErrors = createError([
   { errorType: "TokenError" },
 ] as const);
 
-// Payment domain errors
 const paymentErrors = createPaymentErrors("Payment");
 const recurringPayments = paymentErrors.subcontext("Recurring");
-const refunds = paymentErrors.subcontext("Refund");
 
 const recurringError = recurringPayments.feature("RecurringPaymentError");
-const refundError = refunds.feature("RefundError");
 
-// Auth domain errors
 const authErrors = createAuthErrors("Authentication");
 const oauthError = authErrors.feature("OAuthError");
 
-// Usage examples
 throw recurringError("ProcessingError", "Card declined for recurring payment");
 throw oauthError("TokenError", "OAuth token has expired");
 ```
 
-## Advanced Usage
+## Extended Parameters
 
-### Team-Based Error Organization
-
-Associate errors with teams for better debugging:
+`extendedParams` is an arbitrary map of metadata that flows from `createError` → root context → subcontext → feature → call-site. Each layer takes a **plain object** as its second positional argument:
 
 ```ts
-import { createError } from "conway-errors";
+const createErrorContext = createError(
+  [{ errorType: "FrontendLogicError" }, { errorType: "BackendLogicError" }] as const,
+  {
+    extendedParams: { environment: process.env.NODE_ENV },  // ← wrapped in CreateErrorOptions
+    handleEmit: (err, params) => {
+      // `params` is the FULL merged map (root → ctx → sub → feature → call-site)
+      console.error({ err, params });
+    },
+  }
+);
 
-const createErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" },
-] as const);
+const projectErrors = createErrorContext("MyProject", { app: "web" });          // ← direct map
+const authErrors = projectErrors.subcontext("Auth", { team: "Platform Team" }); // ← direct map
+const loginError = authErrors.feature("Login", { component: "LoginForm" });    // ← direct map
 
-const projectErrors = createErrorContext("MyProject");
-
-// Method 1: Using extendedParams for team attribution (recommended)
-const authErrors = projectErrors.subcontext("Auth", {
-  extendedParams: { team: "Platform Team", component: "Authentication" }
-});
-
-const searchErrors = projectErrors.subcontext("Search", {
-  extendedParams: { team: "User Experience Team", component: "Search" }
-});
-
-// Method 2: Team-specific root contexts
-const platformErrors = createErrorContext("PlatformTeam");
-const uxErrors = createErrorContext("UXTeam");
+loginError("FrontendLogicError", "Invalid token").emit({ severity: "warn" });    // ← direct map
+// handleEmit receives: { environment, app: "web", team: "Platform Team",
+//                       component: "LoginForm", severity: "warn" }
 ```
+
+**Important:** the second argument of `createErrorContext`, `subcontext`, `feature`, and `.emit()` is **the params map itself**, not `{ extendedParams: ... }`. Only the top-level `createError(types, options)` wraps it inside `CreateErrorOptions` (alongside `handleEmit`).
+
+**Asymmetry to be aware of:** `error.extendedParams` on a thrown instance contains **only the call-site slice** (whatever was passed via `options.extendedParams` at the feature invocation). The full merged map is delivered exclusively to `handleEmit`. Consumers wanting the merged context must read it inside the handler.
 
 ## Configuration Options
 
-### Error Monitoring Integration
+### Sentry Integration
 
-#### Sentry Integration
-
-Override `.emit()` to send events to Sentry:
+Override `handleEmit` to send events to Sentry:
 
 ```ts
 import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
-const createErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" }
-] as const, {
-  // Custom error handling for monitoring
-  handleEmit: (err) => {
-    Sentry.captureException(err);
-  },
-});
+const createErrorContext = createError(
+  [{ errorType: "FrontendLogicError" }, { errorType: "BackendLogicError" }] as const,
+  {
+    handleEmit: (err) => {
+      Sentry.captureException(err);
+    },
+  }
+);
 
 const appErrors = createErrorContext("MyApp");
 const userError = appErrors.feature("UserAction");
 
-// Automatically logs to Sentry when using emit()
 userError("FrontendLogicError", "Form validation failed").emit();
 ```
 
-#### PostHog Integration
-
-Integrate with PostHog for error tracking with user analytics:
+### PostHog Integration
 
 ```ts
 import { createError } from "conway-errors";
 import posthog from "posthog-js";
 
-const createErrorContext = createError([
-  { errorType: "ValidationError" },
-  { errorType: "NetworkError" },
-  { errorType: "BusinessLogicError" }
-] as const, {
-  extendedParams: {
-    userId: null,
-    sessionId: null,
-    feature: null
-  },
-  handleEmit: (err, extendedParams) => {
-    const { userId, sessionId, feature, severity = "error" } = extendedParams;
-    
-    // Capture exception with PostHog
-    posthog.captureException(err, {
-      user_id: userId,
-      session_id: sessionId,
-      feature: feature,
-      severity: severity,
-      error_context: err.name, // Conway error context path
-      timestamp: Date.now()
-    });
-  },
-});
+const createErrorContext = createError(
+  [
+    { errorType: "ValidationError" },
+    { errorType: "NetworkError" },
+    { errorType: "BusinessLogicError" },
+  ] as const,
+  {
+    extendedParams: { userId: null, sessionId: null, feature: null },
+    handleEmit: (err, extendedParams) => {
+      const { userId, sessionId, feature, severity = "error" } = extendedParams ?? {};
 
-const checkoutErrors = createErrorContext("Checkout", {
-  extendedParams: { feature: "payment_flow" }
-});
+      posthog.captureException(err, {
+        user_id: userId,
+        session_id: sessionId,
+        feature,
+        severity,
+        error_context: err.name,
+        timestamp: Date.now(),
+      });
+    },
+  }
+);
 
+const checkoutErrors = createErrorContext("Checkout", { feature: "payment_flow" });
 const paymentError = checkoutErrors.feature("PaymentProcessing");
 
-// Error with user context for PostHog analytics
 paymentError("NetworkError", "Payment gateway timeout").emit({
-  extendedParams: {
-    userId: "user-123",
-    sessionId: "session-456",
-    severity: "critical"
-  }
+  userId: "user-123",
+  sessionId: "session-456",
+  severity: "critical",
 });
 ```
 
-### Custom Error Message Formatting
+### Original Error and Message Postfix
+
+Pass the upstream error via `options.originalError` (the **third** argument to a feature invocation). If the matching `errorType` declares `createMessagePostfix`, its output is appended to `error.message`.
 
 ```ts
 import { createError } from "conway-errors";
@@ -306,7 +274,8 @@ import { createError } from "conway-errors";
 const createErrorContext = createError([
   {
     errorType: "FrontendLogicError",
-    createMessagePostfix: (originalError) => " >>> " + originalError?.message
+    createMessagePostfix: (originalError) =>
+      originalError instanceof Error ? ` >>> ${originalError.message}` : "",
   },
   { errorType: "BackendLogicError" },
 ] as const);
@@ -316,31 +285,28 @@ const uploadError = context.feature("AvatarUpload");
 
 try {
   await uploadAvatar();
-} catch (err) {
-  throw uploadError("FrontendLogicError", "Failed to upload avatar", err);
-  // Result: "FrontendLogicError: FileUpload/AvatarUpload: Failed to upload avatar >>> Network timeout"
+} catch (cause) {
+  throw uploadError("FrontendLogicError", "Failed to upload avatar", { originalError: cause });
+  // error.message === "FileUpload/AvatarUpload: Failed to upload avatar >>> Network timeout"
 }
 ```
 
-### Extended Parameters and Metadata
+The first argument of `createMessagePostfix` is typed as `unknown` — narrow it (`instanceof Error`, `typeof === "string"`, etc.) before reading properties. Falsy-but-present values (`0`, `""`, `false`) are forwarded; only `undefined` and `null` skip the postfix.
 
-Add custom metadata to errors for enhanced debugging and monitoring:
+### Combining `extendedParams` and Sentry
 
 ```ts
 import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError(
-  ["FrontendLogicError", "BackendLogicError"],
+  [{ errorType: "FrontendLogicError" }, { errorType: "BackendLogicError" }] as const,
   {
-    extendedParams: {
-      environment: process.env.NODE_ENV,
-      version: "1.2.3"
-    },
-    handleEmit: (err, extendedParams) => {
-      const { environment, version, severity = "error", userId, action } = extendedParams;
+    extendedParams: { environment: process.env.NODE_ENV, version: "1.2.3" },
+    handleEmit: (err, params) => {
+      const { environment, version, severity = "error", userId, action } = params ?? {};
 
-      Sentry.withScope(scope => {
+      Sentry.withScope((scope) => {
         scope.setTags({ environment, version, action });
         scope.setUser({ id: userId });
         scope.setLevel(severity);
@@ -350,35 +316,42 @@ const createErrorContext = createError(
   }
 );
 
-const paymentErrors = createErrorContext("Payment", {
-  extendedParams: { service: "stripe" }
-});
+const paymentErrors = createErrorContext("Payment", { service: "stripe" });
+const cardPayment = paymentErrors.feature("CardPayment", { region: "us-east-1" });
 
-const cardPayment = paymentErrors.feature("CardPayment", {
-  extendedParams: { region: "us-east-1" }
-});
-
-// Error with context-specific metadata
 const error = cardPayment("BackendLogicError", "Payment processing failed");
-error.emit({
-  extendedParams: {
-    userId: "user-123",
-    action: "checkout",
-    severity: "critical"
-  }
-});
+error.emit({ userId: "user-123", action: "checkout", severity: "critical" });
 ```
+
+## Error Identification
+
+Use `isConwayError` to narrow `unknown` to `IConwayError`:
+
+```ts
+import { isConwayError } from "conway-errors";
+
+try {
+  await doWork();
+} catch (err) {
+  if (isConwayError(err)) {
+    console.error(err.rootContext, err.contextsChunk, err.feature);
+    err.emit();
+  } else {
+    throw err;
+  }
+}
+```
+
+The guard uses a `Symbol.for("conway-errors:brand")` marker, so it works correctly across realms (workers, iframes, or when multiple copies of the library are bundled together).
 
 ## TypeScript Support
 
-### Type Utilities
+### `AnyFeatureOfSubcontext`
 
-#### AnyFeatureOfSubcontext
-
-Type-safe error handling with explicit subcontext constraints:
+Type-safe error handling constrained to a specific subcontext:
 
 ```ts
-import { createError, AnyFeatureOfSubcontext } from "conway-errors";
+import { createError, type AnyFeatureOfSubcontext } from "conway-errors";
 
 const createErrorContext = createError([
   { errorType: "ValidationError" },
@@ -391,46 +364,95 @@ const authErrors = appErrors.subcontext("Auth");
 const loginError = authErrors.feature("LoginError");
 const generalError = appErrors.feature("GeneralError");
 
-// Type-safe error handler for auth-specific features
 function handleAuthError(errorFeature: AnyFeatureOfSubcontext<typeof authErrors>) {
-  // Only accepts features from authErrors subcontext
+  // Only accepts features whose path starts with "App/Auth"
 }
 
 handleAuthError(loginError);    // ✅ Valid
 handleAuthError(generalError);  // ❌ TypeScript error
 ```
 
+### Public Type Exports
+
+For consumers building wrappers or typed handlers:
+
+| Type | Purpose |
+|---|---|
+| `IConwayError` | Shape of every thrown instance (extends `Error`). |
+| `EmitFn` | Signature of `IConwayError.emit`. |
+| `ExtendedParams` | `Record<string, unknown>` map used everywhere. |
+| `CreateErrorOptions` | `options` argument of `createError`. |
+| `ErrorFnOptions` | `options` argument of a feature invocation. |
+| `ErrorTypeConfig` | Type of the `errorTypes` array. |
+| `AnyFeatureOfSubcontext<S>` | Derive a feature signature from a subcontext type. |
+
+## Migrating to 4.0
+
+### Frozen, read-only error instances
+
+`Object.freeze` is now called inside the `ConwayError` constructor, and every public field is `readonly`. Code that mutated thrown errors must move the data into `extendedParams`:
+
+```ts
+// 3.x — silently mutated the error (compile-time only readonly)
+err.feature = "renamed";
+(err as any).requestId = "abc-123";
+
+// 4.0 — both lines throw TypeError in strict mode
+//        feature is read-only AND the instance is frozen
+
+// 4.0 — store metadata via extendedParams
+feature("X", "msg", { extendedParams: { requestId: "abc-123" } });
+```
+
+If you used integrations that decorate thrown errors after the fact (e.g. attaching a `__captured__` marker, rewriting `stack`), they will now fail. Switch to the `handleEmit` callback or keep a side-table keyed by the error instance.
+
+### `isConwayError` is brand-based
+
+Previously the guard used `instanceof ConwayError`, which broke across realms. 4.0 uses a `Symbol.for("conway-errors:brand")` marker — the guard is now cross-realm safe but stops recognising hand-rolled `Error` subclasses that happen to extend the (unexported) base class.
+
+### `OriginalError` is no longer exported
+
+It was an alias for `unknown` and carried no narrowing value. Remove the import and use `unknown` directly. `originalError` is still typed as `unknown` everywhere it appears.
+
+### Stricter TypeScript
+
+The library now compiles under `exactOptionalPropertyTypes`. `error.originalError` and `error.extendedParams` are always own properties (`"originalError" in err === true`), with value `undefined` when not provided. Existence checks should use `err.originalError !== undefined`, not `"originalError" in err`.
+
+### `package.json#exports`
+
+The conditional export map uses the standard `{ types, import, require }` shape. Modern bundlers and Node ≥ 12 work unchanged; tooling pinning legacy keys may need an update.
+
 ## Troubleshooting
 
-### Common Issues
+**Q: My error types are widened to `string` instead of the literal union.**
 
-**Q: Error messages are not showing the full context path**
-
-A: Make sure you're using `as const` when defining error types:
+A: Add `as const` to the `errorTypes` array:
 
 ```ts
-// ✅ Correct
-const createErrorContext = createError(["ValidationError"] as const);
-
-// ❌ Incorrect
-const createErrorContext = createError(["ValidationError"]);
-```
-
-**Q: TypeScript errors when using custom error types**
-
-A: Ensure proper typing with const assertions and avoid mixing string literals with objects:
-
-```ts
-// ✅ Correct
+// ✅ Correct — errorType is narrowed to "ValidationError" | "NetworkError"
 const createErrorContext = createError([
-  { errorType: "CustomError" },
-  { errorType: "AnotherError" }
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
 ] as const);
+
+// ❌ Incorrect — errorType inferred as `string`
+const createErrorContext = createError([
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
+]);
 ```
 
-**Q: Extended parameters not appearing in error handlers**
+**Q: `error.extendedParams` shows only what I passed at the call site, not the merged map.**
 
-A: Extended parameters are inherited through the hierarchy. Child contexts override parent parameters with the same key.
+A: That is by design. The full merged map is delivered to `handleEmit` as its second argument. The instance carries only the call-site slice.
+
+**Q: My `createMessagePostfix` doesn't run for `UnknownError`.**
+
+A: `UnknownError` is the fallback when an unconfigured `errorType` is requested. Postfix functions are bound to registered types — register the type explicitly to get message decoration.
+
+**Q: My `handleEmit` is wrapped in try/catch and now my Sentry/PostHog failure breaks the app.**
+
+A: The library does **not** wrap `handleEmit`. A throwing handler propagates to the caller of `.emit()`. Wrap your own integration if you want fail-safe delivery.
 
 ## Acknowledgment for Contributions
 

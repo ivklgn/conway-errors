@@ -31,6 +31,11 @@
       "source": "guides/structuring-errors-by-app-type.guide.md",
       "target": "decisions/branded-types-for-context.adr.md",
       "type": "related"
+    },
+    {
+      "source": "release/publish-release.task-type.md",
+      "target": "release/publishing-to-npm.guide.md",
+      "type": "implements"
     }
   ]
 }

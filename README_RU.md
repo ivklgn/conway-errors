@@ -5,7 +5,9 @@
 
 [Английский перевод](README.md)
 
-JS/TS библиотека для создания структурированных и читабельных ошибок
+JS/TS библиотека для создания структурированных и читабельных ошибок.
+
+> **Обновляетесь с 3.x?** См. [Миграция на 4.0](#миграция-на-40) — экземпляры ошибок теперь заморожены и read-only.
 
 ## Почему conway-errors?
 
@@ -13,15 +15,14 @@ JS/TS библиотека для создания структурирован�
 - **📝 Читаемые сообщения об ошибках**: Понятные, контекстуальные сообщения с полной информацией
 - **🔧 Гибкая конфигурация**: Полный контроль выброса и логирования
 - **🏗️ Разделение зон ответственности**: Изящный программный API для разбивки по доменам и командам
-- **📊 Интеграция с трекерами**: Удобное подключение мониторинга ошибок, таких как Sentry, Posthog
+- **📊 Интеграция с трекерами**: Удобное подключение мониторинга ошибок, таких как Sentry, PostHog
+- **🔒 Иммутабельные ошибки**: Каждый экземпляр заморожен — безопасно передавать между слоями
 
 ```sh
-ConwayError [BackendLogicError]: PaymentForm/APIError/APIPaymentError: Payment already processed
-    at createNewErrorObject (/project/index.ts:205:23)
-    at Object.<anonymous> (/project/index.test.ts:26:1)
-    at Module._compile (node:internal/modules/cjs/loader:1740:14)
-    at Module.m._compile (/project/node_modules/ts-node/src/index.ts:1618:23)
-    at node:internal/modules/cjs/loader:1905:10
+BackendLogicError: MyProject/APIError/APIPaymentError: Payment already processed
+    at createNewErrorObject (/project/dist/index.js:205:23)
+    at handleCheckout (/project/src/checkout.ts:42:11)
+    ...
 ```
 
 ## Быстрый старт
@@ -50,12 +51,15 @@ const appErrors = createErrorContext("MyApp");
 ### 3. Создание и выброс ошибок
 
 ```ts
-// Создайте ошибку
 const loginError = appErrors.feature("LoginError");
 
 throw loginError("ValidationError", "Неверный формат email");
-// Результат: ValidationError: MyApp/LoginError: Неверный формат email
+// error.name    === "ValidationError"
+// error.message === "MyApp/LoginError: Неверный формат email"
+// console.error(error) выведет: "ValidationError: MyApp/LoginError: Неверный формат email"
 ```
+
+`error.message` содержит только путь контекста и текст сообщения. Префикс с типом ошибки (`ValidationError:`) добавляется рантаймом при приведении к строке (`console.error`, `error.toString()`).
 
 ## Примеры
 
@@ -64,31 +68,26 @@ throw loginError("ValidationError", "Неверный формат email");
 ```ts
 import { createError } from "conway-errors";
 
-// Настройте типы ошибок для вашего приложения
 const createErrorContext = createError([
   { errorType: "ValidationError" },
   { errorType: "NetworkError" },
   { errorType: "BusinessLogicError" },
 ] as const);
 
-// Создайте корневой контекст ошибок приложения
 const appErrors = createErrorContext("ECommerceApp");
 
-// Создайте конкретные ошибки
 const userRegistration = appErrors.feature("UserRegistration");
 const paymentProcessing = appErrors.feature("PaymentProcessing");
 
-// Выбрасывайте контекстуальные ошибки
 try {
-  // Какая-то логика валидации
   throw userRegistration("ValidationError", "Email уже существует");
 } catch (error) {
-  console.log(error.message);
-  // Вывод: "ValidationError: ECommerceApp/UserRegistration: Email уже существует"
+  console.log((error as Error).message);
+  // "ECommerceApp/UserRegistration: Email уже существует"
 }
 
-// Логируйте ошибки без выброса
-paymentProcessing("NetworkError", "Таймаут платежного шлюза").emit();
+// Логирование ошибок без выброса
+paymentProcessing("NetworkError", "Таймаут платёжного шлюза").emit();
 ```
 
 ### Иерархическая организация ошибок
@@ -96,29 +95,24 @@ paymentProcessing("NetworkError", "Таймаут платежного шлюз�
 ```ts
 import { createError } from "conway-errors";
 
-// Настройка конфигурации ошибок
 const createErrorContext = createError([
   { errorType: "FrontendLogicError" },
   { errorType: "BackendLogicError" },
 ] as const);
 
-// Создание корневого контекста
 const errorContext = createErrorContext("MyProject");
 
-// Создание организованных подконтекстов
 const apiErrorContext = errorContext.subcontext("APIError");
 const authErrorContext = errorContext.subcontext("AuthError");
 
-// Создание конкретных функций ошибок
 const oauthError = authErrorContext.feature("OauthError");
 const apiPaymentError = apiErrorContext.feature("APIPaymentError");
 
-// Выброс ошибок
 throw oauthError("FrontendLogicError", "Пользователь не найден");
-// Результат: "FrontendLogicError: MyProject/AuthError/OauthError: Пользователь не найден"
+// error.message === "MyProject/AuthError/OauthError: Пользователь не найден"
 
-throw apiPaymentError("BackendLogicError", "Платеж уже обработан");
-// Результат: "BackendLogicError: MyProject/APIError/APIPaymentError: Платеж уже обработан"
+throw apiPaymentError("BackendLogicError", "Платёж уже обработан");
+// error.message === "MyProject/APIError/APIPaymentError: Платёж уже обработан"
 ```
 
 ### Отдельные корневые контексты
@@ -126,7 +120,6 @@ throw apiPaymentError("BackendLogicError", "Платеж уже обработа
 ```ts
 import { createError } from "conway-errors";
 
-// Настройка типов ошибок, специфичных для API
 const createAPIErrorContext = createError([
   { errorType: "MissingRequiredHeader" },
   { errorType: "InvalidInput" },
@@ -134,24 +127,18 @@ const createAPIErrorContext = createError([
   { errorType: "RateLimitExceeded" },
 ] as const);
 
-// Создание контекстов ошибок для конкретных сервисов
 const authAPIErrors = createAPIErrorContext("AuthAPI");
 const stockAPIErrors = createAPIErrorContext("StockAPI");
 
-// Создание обработчиков ошибок для конкретных функций
 const loginError = authAPIErrors.feature("LoginError");
-const registerError = authAPIErrors.feature("RegisterError");
 const stockSearchError = stockAPIErrors.feature("StockSearchError");
 
-// Обработка различных сценариев ошибок
 try {
-  // Логика API вызова
   throw loginError("InvalidInput", "Неверный формат email");
 } catch (error) {
   // Обработка ошибок валидации входа
 }
 
-// Логирование ошибок для мониторинга
 stockSearchError("RateLimitExceeded", "Превышена квота API").emit();
 ```
 
@@ -160,7 +147,6 @@ stockSearchError("RateLimitExceeded", "Превышена квота API").emit(
 ```ts
 import { createError } from "conway-errors";
 
-// Отдельные наборы типов для разных контекстов
 const createPaymentErrors = createError([
   { errorType: "ValidationError" },
   { errorType: "ProcessingError" },
@@ -173,132 +159,114 @@ const createAuthErrors = createError([
   { errorType: "TokenError" },
 ] as const);
 
-// Ошибки домена платежей
 const paymentErrors = createPaymentErrors("Payment");
 const recurringPayments = paymentErrors.subcontext("Recurring");
-const refunds = paymentErrors.subcontext("Refund");
 
 const recurringError = recurringPayments.feature("RecurringPaymentError");
-const refundError = refunds.feature("RefundError");
 
-// Ошибки домена аутентификации
 const authErrors = createAuthErrors("Authentication");
 const oauthError = authErrors.feature("OAuthError");
 
-// Примеры использования
 throw recurringError("ProcessingError", "Карта отклонена для регулярного платежа");
-throw oauthError("TokenError", "OAuth токен истек");
+throw oauthError("TokenError", "OAuth токен истёк");
 ```
 
-## Продвинутое использование
+## Расширенные параметры
 
-### Организация ошибок по командам
-
-Связывайте ошибки с команд для лучшей отладки:
+`extendedParams` — произвольная карта метаданных, которая течёт от `createError` → корневого контекста → подконтекста → feature → точки вызова. Каждый уровень принимает **обычный объект** вторым позиционным аргументом:
 
 ```ts
-import { createError } from "conway-errors";
+const createErrorContext = createError(
+  [{ errorType: "FrontendLogicError" }, { errorType: "BackendLogicError" }] as const,
+  {
+    extendedParams: { environment: process.env.NODE_ENV },  // ← обёрнуто в CreateErrorOptions
+    handleEmit: (err, params) => {
+      // `params` — это ПОЛНАЯ объединённая карта (root → ctx → sub → feature → call-site)
+      console.error({ err, params });
+    },
+  }
+);
 
-const createErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" },
-] as const);
+const projectErrors = createErrorContext("MyProject", { app: "web" });          // ← карта напрямую
+const authErrors = projectErrors.subcontext("Auth", { team: "Platform Team" }); // ← карта напрямую
+const loginError = authErrors.feature("Login", { component: "LoginForm" });     // ← карта напрямую
 
-const projectErrors = createErrorContext("MyProject");
-
-// Метод 1: Использование extendedParams для атрибуции команды (рекомендуется)
-const authErrors = projectErrors.subcontext("Auth", {
-  extendedParams: { team: "Platform Team", component: "Authentication" }
-});
-
-const searchErrors = projectErrors.subcontext("Search", {
-  extendedParams: { team: "User Experience Team", component: "Search" }
-});
-
-// Метод 2: Корневые контексты для конкретных команд
-const platformErrors = createErrorContext("PlatformTeam");
-const uxErrors = createErrorContext("UXTeam");
+loginError("FrontendLogicError", "Невалидный токен").emit({ severity: "warn" }); // ← карта напрямую
+// handleEmit получит: { environment, app: "web", team: "Platform Team",
+//                       component: "LoginForm", severity: "warn" }
 ```
+
+**Важно:** второй аргумент `createErrorContext`, `subcontext`, `feature` и `.emit()` — **сама карта параметров**, а не `{ extendedParams: ... }`. Только верхнеуровневый `createError(types, options)` оборачивает её в `CreateErrorOptions` (вместе с `handleEmit`).
+
+**Асимметрия, которую важно знать:** `error.extendedParams` на брошенном экземпляре содержит **только срез call-site** (то, что было передано через `options.extendedParams` при вызове feature). Полная объединённая карта доставляется исключительно в `handleEmit`. Потребителям, которым нужен объединённый контекст, следует читать его внутри хендлера.
 
 ## Параметры конфигурации
 
-### Интеграция с мониторингом ошибок
+### Интеграция с Sentry
 
-#### Интеграция с Sentry
-
-Перегрузка `.emit()` для отправки событий в Sentry:
+Переопределите `handleEmit` для отправки событий в Sentry:
 
 ```ts
 import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
-const createErrorContext = createError([
-  { errorType: "FrontendLogicError" },
-  { errorType: "BackendLogicError" }
-] as const, {
-  // Пользовательская обработка ошибок для мониторинга
-  handleEmit: (err) => {
-    Sentry.captureException(err);
-  },
-});
+const createErrorContext = createError(
+  [{ errorType: "FrontendLogicError" }, { errorType: "BackendLogicError" }] as const,
+  {
+    handleEmit: (err) => {
+      Sentry.captureException(err);
+    },
+  }
+);
 
 const appErrors = createErrorContext("MyApp");
 const userError = appErrors.feature("UserAction");
 
-// Автоматически логирует в Sentry при использовании emit()
 userError("FrontendLogicError", "Валидация формы не прошла").emit();
 ```
 
-#### Интеграция с PostHog
-
-Интегрируйтесь с PostHog для отслеживания ошибок с пользовательской аналитикой:
+### Интеграция с PostHog
 
 ```ts
 import { createError } from "conway-errors";
 import posthog from "posthog-js";
 
-const createErrorContext = createError([
-  { errorType: "ValidationError" },
-  { errorType: "NetworkError" },
-  { errorType: "BusinessLogicError" }
-] as const, {
-  extendedParams: {
-    userId: null,
-    sessionId: null,
-    feature: null
-  },
-  handleEmit: (err, extendedParams) => {
-    const { userId, sessionId, feature, severity = "error" } = extendedParams;
-    
-    // Захват исключения с PostHog
-    posthog.captureException(err, {
-      user_id: userId,
-      session_id: sessionId,
-      feature: feature,
-      severity: severity,
-      error_context: err.name, // Путь контекста Conway error
-      timestamp: Date.now()
-    });
-  },
-});
+const createErrorContext = createError(
+  [
+    { errorType: "ValidationError" },
+    { errorType: "NetworkError" },
+    { errorType: "BusinessLogicError" },
+  ] as const,
+  {
+    extendedParams: { userId: null, sessionId: null, feature: null },
+    handleEmit: (err, extendedParams) => {
+      const { userId, sessionId, feature, severity = "error" } = extendedParams ?? {};
 
-const checkoutErrors = createErrorContext("Checkout", {
-  extendedParams: { feature: "payment_flow" }
-});
+      posthog.captureException(err, {
+        user_id: userId,
+        session_id: sessionId,
+        feature,
+        severity,
+        error_context: err.name,
+        timestamp: Date.now(),
+      });
+    },
+  }
+);
 
+const checkoutErrors = createErrorContext("Checkout", { feature: "payment_flow" });
 const paymentError = checkoutErrors.feature("PaymentProcessing");
 
-// Ошибка с пользовательским контекстом для аналитики PostHog
-paymentError("NetworkError", "Таймаут платежного шлюза").emit({
-  extendedParams: {
-    userId: "user-123",
-    sessionId: "session-456",
-    severity: "critical"
-  }
+paymentError("NetworkError", "Таймаут платёжного шлюза").emit({
+  userId: "user-123",
+  sessionId: "session-456",
+  severity: "critical",
 });
 ```
 
-### Пользовательское форматирование сообщений об ошибках
+### Исходная ошибка и постфикс сообщения
+
+Передавайте исходную ошибку через `options.originalError` (**третий** аргумент вызова feature). Если для подходящего `errorType` определена `createMessagePostfix`, её вывод дописывается к `error.message`.
 
 ```ts
 import { createError } from "conway-errors";
@@ -306,7 +274,8 @@ import { createError } from "conway-errors";
 const createErrorContext = createError([
   {
     errorType: "FrontendLogicError",
-    createMessagePostfix: (originalError) => " >>> " + originalError?.message
+    createMessagePostfix: (originalError) =>
+      originalError instanceof Error ? ` >>> ${originalError.message}` : "",
   },
   { errorType: "BackendLogicError" },
 ] as const);
@@ -316,31 +285,28 @@ const uploadError = context.feature("AvatarUpload");
 
 try {
   await uploadAvatar();
-} catch (err) {
-  throw uploadError("FrontendLogicError", "Не удалось загрузить аватар", err);
-  // Результат: "FrontendLogicError: FileUpload/AvatarUpload: Не удалось загрузить аватар >>> Таймаут сети"
+} catch (cause) {
+  throw uploadError("FrontendLogicError", "Не удалось загрузить аватар", { originalError: cause });
+  // error.message === "FileUpload/AvatarUpload: Не удалось загрузить аватар >>> Network timeout"
 }
 ```
 
-### Расширенные параметры и метаданные
+Первый аргумент `createMessagePostfix` имеет тип `unknown` — сузьте его (`instanceof Error`, `typeof === "string"` и т.д.) перед чтением свойств. Falsy-но-присутствующие значения (`0`, `""`, `false`) пробрасываются; только `undefined` и `null` пропускают постфикс.
 
-Добавляйте пользовательские метаданные к ошибкам для улучшения отладки и мониторинга:
+### Комбинация `extendedParams` и Sentry
 
 ```ts
 import { createError } from "conway-errors";
 import * as Sentry from "@sentry/nextjs";
 
 const createErrorContext = createError(
-  ["FrontendLogicError", "BackendLogicError"],
+  [{ errorType: "FrontendLogicError" }, { errorType: "BackendLogicError" }] as const,
   {
-    extendedParams: {
-      environment: process.env.NODE_ENV,
-      version: "1.2.3"
-    },
-    handleEmit: (err, extendedParams) => {
-      const { environment, version, severity = "error", userId, action } = extendedParams;
+    extendedParams: { environment: process.env.NODE_ENV, version: "1.2.3" },
+    handleEmit: (err, params) => {
+      const { environment, version, severity = "error", userId, action } = params ?? {};
 
-      Sentry.withScope(scope => {
+      Sentry.withScope((scope) => {
         scope.setTags({ environment, version, action });
         scope.setUser({ id: userId });
         scope.setLevel(severity);
@@ -350,35 +316,42 @@ const createErrorContext = createError(
   }
 );
 
-const paymentErrors = createErrorContext("Payment", {
-  extendedParams: { service: "stripe" }
-});
+const paymentErrors = createErrorContext("Payment", { service: "stripe" });
+const cardPayment = paymentErrors.feature("CardPayment", { region: "us-east-1" });
 
-const cardPayment = paymentErrors.feature("CardPayment", {
-  extendedParams: { region: "us-east-1" }
-});
-
-// Ошибка с контекстно-специфичными метаданными
 const error = cardPayment("BackendLogicError", "Сбой обработки платежа");
-error.emit({
-  extendedParams: {
-    userId: "user-123",
-    action: "checkout",
-    severity: "critical"
-  }
-});
+error.emit({ userId: "user-123", action: "checkout", severity: "critical" });
 ```
+
+## Идентификация ошибок
+
+Используйте `isConwayError`, чтобы сузить `unknown` до `IConwayError`:
+
+```ts
+import { isConwayError } from "conway-errors";
+
+try {
+  await doWork();
+} catch (err) {
+  if (isConwayError(err)) {
+    console.error(err.rootContext, err.contextsChunk, err.feature);
+    err.emit();
+  } else {
+    throw err;
+  }
+}
+```
+
+Тайп-гард использует маркер `Symbol.for("conway-errors:brand")`, поэтому корректно работает через realm-границы (workers, iframe, или когда несколько копий библиотеки попадают в один бандл).
 
 ## Поддержка TypeScript
 
-### Утилиты типов
+### `AnyFeatureOfSubcontext`
 
-#### AnyFeatureOfSubcontext
-
-Типобезопасная обработка ошибок с явными ограничениями подконтекста:
+Типобезопасная обработка ошибок с ограничением на конкретный подконтекст:
 
 ```ts
-import { createError, AnyFeatureOfSubcontext } from "conway-errors";
+import { createError, type AnyFeatureOfSubcontext } from "conway-errors";
 
 const createErrorContext = createError([
   { errorType: "ValidationError" },
@@ -391,46 +364,95 @@ const authErrors = appErrors.subcontext("Auth");
 const loginError = authErrors.feature("LoginError");
 const generalError = appErrors.feature("GeneralError");
 
-// Типобезопасный обработчик ошибок для функций, специфичных для аутентификации
 function handleAuthError(errorFeature: AnyFeatureOfSubcontext<typeof authErrors>) {
-  // Принимает только функции из подконтекста authErrors
+  // Принимает только features, чей путь начинается с "App/Auth"
 }
 
 handleAuthError(loginError);    // ✅ Валидно
 handleAuthError(generalError);  // ❌ Ошибка TypeScript
 ```
 
+### Публичные экспорты типов
+
+Для потребителей, строящих обёртки или типизированные хендлеры:
+
+| Тип | Назначение |
+|---|---|
+| `IConwayError` | Форма каждого брошенного экземпляра (extends `Error`). |
+| `EmitFn` | Сигнатура `IConwayError.emit`. |
+| `ExtendedParams` | `Record<string, unknown>`, используется везде. |
+| `CreateErrorOptions` | Аргумент `options` функции `createError`. |
+| `ErrorFnOptions` | Аргумент `options` при вызове feature. |
+| `ErrorTypeConfig` | Тип массива `errorTypes`. |
+| `AnyFeatureOfSubcontext<S>` | Вывести сигнатуру feature из типа подконтекста. |
+
+## Миграция на 4.0
+
+### Заморозка и read-only поля
+
+`Object.freeze` теперь вызывается внутри конструктора `ConwayError`, и все публичные поля помечены `readonly`. Код, мутировавший брошенные ошибки, должен переехать на `extendedParams`:
+
+```ts
+// 3.x — молчаливо мутировал ошибку (readonly работал только на этапе компиляции)
+err.feature = "renamed";
+(err as any).requestId = "abc-123";
+
+// 4.0 — обе строки бросят TypeError в strict mode
+//        feature read-only И сам экземпляр заморожен
+
+// 4.0 — храните метаданные через extendedParams
+feature("X", "msg", { extendedParams: { requestId: "abc-123" } });
+```
+
+Если использовались интеграции, декорирующие брошенные ошибки постфактум (например, навешивание маркера `__captured__`, переписывание `stack`), они теперь упадут. Перейдите на коллбэк `handleEmit` или ведите side-таблицу по экземпляру ошибки.
+
+### `isConwayError` теперь на основе бренда
+
+Раньше гард использовал `instanceof ConwayError`, что ломалось между realm'ами. 4.0 использует маркер `Symbol.for("conway-errors:brand")` — гард стал безопасен к cross-realm, но перестал распознавать вручную написанные подклассы `Error`, унаследованные от (неэкспортированного) базового класса.
+
+### `OriginalError` больше не экспортируется
+
+Это был алиас на `unknown` без какой-либо пользы для narrowing. Удалите импорт и используйте `unknown` напрямую. `originalError` по-прежнему типизирован как `unknown` везде, где встречается.
+
+### Более строгий TypeScript
+
+Библиотека теперь компилируется под `exactOptionalPropertyTypes`. `error.originalError` и `error.extendedParams` всегда являются собственными свойствами (`"originalError" in err === true`), со значением `undefined`, если не передано. Проверки на наличие следует делать через `err.originalError !== undefined`, а не `"originalError" in err`.
+
+### `package.json#exports`
+
+Условный экспорт-маппинг использует стандартную форму `{ types, import, require }`. Современные бандлеры и Node ≥ 12 работают без изменений; тулинг, привязанный к старым ключам, может потребовать обновления.
+
 ## Устранение неполадок
 
-### Распространенные проблемы
+**В: Типы ошибок расширены до `string` вместо литерального юниона.**
 
-**В: Сообщения об ошибках не показывают полный путь контекста**
-
-О: Убедитесь, что вы используете `as const` при определении типов ошибок:
+О: Добавьте `as const` к массиву `errorTypes`:
 
 ```ts
-// ✅ Правильно
-const createErrorContext = createError(["ValidationError"] as const);
-
-// ❌ Неправильно
-const createErrorContext = createError(["ValidationError"]);
-```
-
-**В: Ошибки TypeScript при использовании пользовательских типов ошибок**
-
-О: Обеспечьте правильную типизацию с const assertions и избегайте смешивания строковых литералов с объектами:
-
-```ts
-// ✅ Правильно
+// ✅ Правильно — errorType сужен до "ValidationError" | "NetworkError"
 const createErrorContext = createError([
-  { errorType: "CustomError" },
-  { errorType: "AnotherError" }
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
 ] as const);
+
+// ❌ Неправильно — errorType выводится как `string`
+const createErrorContext = createError([
+  { errorType: "ValidationError" },
+  { errorType: "NetworkError" },
+]);
 ```
 
-**В: Расширенные параметры не появляются в обработчиках ошибок**
+**В: `error.extendedParams` показывает только то, что я передал на call-site, а не объединённую карту.**
 
-О: Расширенные параметры наследуются через иерархию. Дочерние контексты переопределяют родительские параметры с тем же ключом.
+О: Это by design. Полная объединённая карта доставляется в `handleEmit` как второй аргумент. Экземпляр несёт только срез call-site.
+
+**В: `createMessagePostfix` не срабатывает для `UnknownError`.**
+
+О: `UnknownError` — fallback для незарегистрированного `errorType`. Постфикс-функции привязаны к зарегистрированным типам — зарегистрируйте тип явно, чтобы получить декорирование сообщения.
+
+**В: Мой `handleEmit` обёрнут в try/catch и теперь сбой Sentry/PostHog ломает приложение.**
+
+О: Библиотека **не** оборачивает `handleEmit`. Бросающий хендлер пробрасывает исключение в вызывающего `.emit()`. Заверните свою интеграцию сами, если нужна fail-safe доставка.
 
 ## Благодарность за вклад
 
