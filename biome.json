@@ -1,4 +1,5 @@
 {
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
@@ -6,6 +7,9 @@
     "lineWidth": 120
   },
   "linter": {
-    "ignore": ["index.test.ts"]
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
   }
 }

@@ -2,7 +2,7 @@ import { test } from "uvu";
 import { snoop } from "snoop";
 import * as assert from "uvu/assert";
 
-import { createError, isConwayError } from "./index";
+import { createError, isConwayError, type IConwayError } from "./index";
 
 test("UnknownError behavior in different scenarios", () => {
   // Test 1: undefined errorTypes - should always create UnknownError
@@ -12,7 +12,8 @@ test("UnknownError behavior in different scenarios", () => {
 
   try {
     throw featureError("ErrorName", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "UnknownError");
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -25,7 +26,8 @@ test("UnknownError behavior in different scenarios", () => {
   try {
     // @ts-expect-error - testing runtime behavior with invalid error type
     throw emptyFeature("AnyErrorType", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "UnknownError");
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -38,7 +40,8 @@ test("UnknownError behavior in different scenarios", () => {
   try {
     // @ts-expect-error - testing runtime behavior with invalid error type
     throw singleFeature("WrongErrorType", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "UnknownError");
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -51,7 +54,8 @@ test("error types throw always mapped errors", () => {
 
   try {
     throw featureError("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Feature: ErrorMessage");
     assert.is(err.feature, "Feature");
@@ -59,7 +63,8 @@ test("error types throw always mapped errors", () => {
 
   try {
     throw featureError("ErrorType2", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Feature: ErrorMessage");
     assert.is(err.feature, "Feature");
@@ -77,7 +82,8 @@ test("nested context write correct message", () => {
 
   try {
     throw feature1Error("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Subcontext1/Subcontext2/Feature 1: ErrorMessage");
   }
@@ -89,7 +95,8 @@ test("nested context write correct message", () => {
 
   try {
     throw feature2Error("ErrorType2", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Subcontext1/Subcontext2/Subcontext3/Subcontext4/Feature 2: ErrorMessage");
   }
@@ -126,7 +133,7 @@ test("custom emit function should override default emit", () => {
 
 test("createMessagePostfix add message if originalError provided", () => {
   const createErrorContext = createError([
-    { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + (originalError as Error).message },
+    { errorType: "ErrorType1", createMessagePostfix: (originalError) => ` >>> ${(originalError as Error).message}` },
     { errorType: "ErrorType2", createMessagePostfix: () => " some additional info" },
   ] as const);
 
@@ -138,14 +145,16 @@ test("createMessagePostfix add message if originalError provided", () => {
 
   try {
     throw featureError("ErrorType1", "ErrorMessage", { originalError });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage >>> OriginalError");
   }
 
   try {
     throw featureError("ErrorType2", "ErrorMessage", { originalError });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType2");
     assert.is(err.message, "Context/Subcontext1/Feature: ErrorMessage some additional info");
   }
@@ -239,7 +248,8 @@ test("isConwayError type guard works correctly", () => {
   const featureError = errorContext.feature("Feature");
   try {
     throw featureError("ErrorName", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.equal(isConwayError(err), true);
   }
 });
@@ -261,7 +271,8 @@ test("feature error can receive extendedParams before emit", () => {
 
   try {
     throw featureError("ErrorType1", "ErrorMessage", { extendedParams: { a: 1 } });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.equal(err?.extendedParams, { a: 1 });
   }
 
@@ -284,13 +295,15 @@ test("error object write extendedParams to properties", () => {
 
   try {
     throw featureError("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err?.extendedParams, undefined);
   }
 
   try {
     throw featureError("ErrorType1", "ErrorMessage", { extendedParams: { a: 1 } });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.equal(err?.extendedParams, { a: 1 });
   }
 });
@@ -303,7 +316,8 @@ test("error properties validation (rootContext, contextsChunk)", () => {
 
   try {
     throw featureError("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.rootContext, "RootContext");
     assert.is(err.contextsChunk, "RootContext/Subcontext");
     assert.is(err.feature, "Feature");
@@ -315,7 +329,8 @@ test("error properties validation (rootContext, contextsChunk)", () => {
   const directFeatureError = context.feature("DirectFeature");
   try {
     throw directFeatureError("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.rootContext, "RootContext");
     assert.is(err.contextsChunk, "RootContext");
     assert.is(err.feature, "DirectFeature");
@@ -325,7 +340,8 @@ test("error properties validation (rootContext, contextsChunk)", () => {
   const originalError = new Error("Original");
   try {
     throw featureError("ErrorType1", "ErrorMessage", { originalError });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.originalError, originalError);
   }
 });
@@ -333,8 +349,8 @@ test("error properties validation (rootContext, contextsChunk)", () => {
 test("default emit behavior calls console.error", () => {
   // Mock console.error
   const originalConsoleError = console.error;
-  let capturedError: any = null;
-  console.error = (err: any) => {
+  let capturedError: IConwayError | null = null;
+  console.error = (err: IConwayError) => {
     capturedError = err;
   };
 
@@ -348,8 +364,9 @@ test("default emit behavior calls console.error", () => {
 
   // Verify console.error was called with the error
   assert.ok(capturedError !== null);
-  assert.is(capturedError.message, "Context/Feature: ErrorMessage");
-  assert.is(capturedError.name, "ErrorType1");
+  const captured = capturedError as IConwayError;
+  assert.is(captured.message, "Context/Feature: ErrorMessage");
+  assert.is(captured.name, "ErrorType1");
 
   // Restore console.error
   console.error = originalConsoleError;
@@ -358,7 +375,7 @@ test("default emit behavior calls console.error", () => {
 test("originalError edge cases", () => {
   const createErrorContext = createError(
     [
-      { errorType: "ErrorType1", createMessagePostfix: (originalError) => " >>> " + (originalError as Error).message },
+      { errorType: "ErrorType1", createMessagePostfix: (originalError) => ` >>> ${(originalError as Error).message}` },
       { errorType: "ErrorType2" },
     ] as const
   );
@@ -370,7 +387,8 @@ test("originalError edge cases", () => {
   const errorObject = new Error("Native error message");
   try {
     throw featureError("ErrorType1", "ErrorMessage", { originalError: errorObject });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.originalError, errorObject);
     assert.is(err.message, "Context/Feature: ErrorMessage >>> Native error message");
   }
@@ -379,7 +397,8 @@ test("originalError edge cases", () => {
   const plainObject = { code: 500, detail: "Server error" };
   try {
     throw featureError("ErrorType1", "ErrorMessage", { originalError: plainObject });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.equal(err.originalError, plainObject);
   }
 
@@ -387,14 +406,16 @@ test("originalError edge cases", () => {
   const primitiveValue = "string error";
   try {
     throw featureError("ErrorType1", "ErrorMessage", { originalError: primitiveValue });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.originalError, primitiveValue);
   }
 
   // Test with undefined originalError - should not append postfix
   try {
     throw featureError("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.originalError, undefined);
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -402,7 +423,8 @@ test("originalError edge cases", () => {
   // Test with null originalError - should not append postfix
   try {
     throw featureError("ErrorType1", "ErrorMessage", { originalError: null });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.originalError, null);
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -410,7 +432,8 @@ test("originalError edge cases", () => {
   // Test originalError without createMessagePostfix - should not append anything
   try {
     throw featureError("ErrorType2", "ErrorMessage", { originalError: errorObject });
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.originalError, errorObject);
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -426,7 +449,8 @@ test("empty and special character handling in names", () => {
 
   try {
     throw emptyFeature("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.message, "//: ErrorMessage");
     assert.is(err.rootContext, "");
     assert.is(err.contextsChunk, "/");
@@ -439,7 +463,8 @@ test("empty and special character handling in names", () => {
 
   try {
     throw specialFeature("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.message, "Context-With-Dashes/Sub_Context_Underscore/Feature.With.Dots: ErrorMessage");
     assert.is(err.feature, "Feature.With.Dots");
   }
@@ -450,7 +475,8 @@ test("empty and special character handling in names", () => {
 
   try {
     throw spaceFeature("ErrorType1", "Error Message");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.message, "Context With Spaces/Feature With Spaces: Error Message");
   }
 
@@ -460,7 +486,8 @@ test("empty and special character handling in names", () => {
 
   try {
     throw slashFeature("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.message, "Context/With/Slashes/Feature/Name: ErrorMessage");
   }
 
@@ -470,7 +497,8 @@ test("empty and special character handling in names", () => {
 
   try {
     throw unicodeFeature("ErrorType1", "メッセージ");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.message, "コンテキスト/機能: メッセージ");
   }
 });
@@ -483,7 +511,8 @@ test("error type configurations (single type, many types)", () => {
 
   try {
     throw singleFeature("SingleErrorType", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "SingleErrorType");
     assert.is(err.message, "Context/Feature: ErrorMessage");
   }
@@ -502,13 +531,15 @@ test("error type configurations (single type, many types)", () => {
   // Test each type works
   try {
     throw manyFeature("Type1", "Message1");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "Type1");
   }
 
   try {
     throw manyFeature("Type5", "Message5");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "Type5");
   }
 });
@@ -520,7 +551,8 @@ test("stack trace preservation and verification", () => {
 
   try {
     throw featureError("ErrorType1", "ErrorMessage");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     // Verify stack trace exists
     assert.ok(err.stack);
     assert.type(err.stack, "string");
@@ -609,7 +641,7 @@ test("multiple independent error contexts are isolated", () => {
   assert.is(error2.name, "Type2");
 });
 
-test("error readonly properties are set correctly", () => {
+test("error readonly properties are set and frozen at runtime", () => {
   const createErrorContext = createError([{ errorType: "ErrorType1" }] as const);
   const context = createErrorContext("RootContext");
   const featureError = context.feature("Feature");
@@ -620,16 +652,18 @@ test("error readonly properties are set correctly", () => {
       originalError,
       extendedParams: { a: 1 },
     });
-  } catch (err: any) {
-    // Verify readonly properties are set correctly
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.rootContext, "RootContext");
     assert.is(err.contextsChunk, "RootContext");
     assert.is(err.originalError, originalError);
     assert.equal(err.extendedParams, { a: 1 });
 
-    // Note: TypeScript 'readonly' is compile-time only, not runtime enforced
-    // At runtime, these properties are still mutable in JavaScript
-    // This is expected behavior - TypeScript provides type safety, not runtime immutability
+    assert.ok(Object.isFrozen(err));
+    assert.throws(() => {
+      (err as { rootContext: string }).rootContext = "MUTATED";
+    });
+    assert.is(err.rootContext, "RootContext");
   }
 });
 
@@ -691,7 +725,8 @@ test("error can be thrown or emitted without throwing", () => {
   // Test throwing
   try {
     throw featureError("ErrorType1", "Message2");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     assert.is(err.name, "ErrorType1");
     assert.is(err.message, "Context/Feature: Message2");
   }
@@ -702,7 +737,8 @@ test("error can be thrown or emitted without throwing", () => {
   // Test throw then emit
   try {
     throw featureError("ErrorType1", "Message3");
-  } catch (err: any) {
+  } catch (e) {
+    const err = e as IConwayError;
     err.emit();
   }
 
@@ -710,6 +746,168 @@ test("error can be thrown or emitted without throwing", () => {
   assert.is(mockedEmit.callCount, 2);
   // @ts-ignore
   assert.is(mockedEmit.calls[1].arguments[0], "Context/Feature: Message3");
+});
+
+test("UnknownError fallback never applies createMessagePostfix even with originalError", () => {
+  // Spec: postfix is bound to a registered errorType. UnknownError has no postfix
+  // because no createMessagePostfix is associated with it. Consumers must register
+  // the type explicitly to get per-instance message decoration.
+  const createErrorContext = createError(
+    [{ errorType: "Known", createMessagePostfix: () => " >>> SHOULD_NOT_APPEAR" }] as const,
+  );
+  const context = createErrorContext("Context");
+  const featureError = context.feature("Feature");
+
+  const originalError = new Error("orig");
+  try {
+    // @ts-expect-error — unknown errorType triggers UnknownError fallback
+    throw featureError("Unknown", "msg", { originalError });
+  } catch (e) {
+    const err = e as IConwayError;
+    assert.is(err.name, "UnknownError");
+    assert.is(err.message, "Context/Feature: msg");
+    assert.is(err.originalError, originalError);
+  }
+});
+
+test("createMessagePostfix is applied for falsy originalError values (0, '', false)", () => {
+  // Postfix gating uses `!= null`, so falsy-but-present values are forwarded.
+  const createErrorContext = createError(
+    [{ errorType: "ErrorType1", createMessagePostfix: (originalError) => ` >>> ${String(originalError)}` }] as const,
+  );
+  const context = createErrorContext("Context");
+  const featureError = context.feature("Feature");
+
+  try {
+    throw featureError("ErrorType1", "msg", { originalError: 0 });
+  } catch (e) {
+    const err = e as IConwayError;
+    assert.is(err.message, "Context/Feature: msg >>> 0");
+    assert.is(err.originalError, 0);
+  }
+
+  try {
+    throw featureError("ErrorType1", "msg", { originalError: "" });
+  } catch (e) {
+    const err = e as IConwayError;
+    assert.is(err.message, "Context/Feature: msg >>> ");
+    assert.is(err.originalError, "");
+  }
+
+  try {
+    throw featureError("ErrorType1", "msg", { originalError: false });
+  } catch (e) {
+    const err = e as IConwayError;
+    assert.is(err.message, "Context/Feature: msg >>> false");
+    assert.is(err.originalError, false);
+  }
+});
+
+test("handleEmit throwing propagates to .emit() caller", () => {
+  // Spec invariant: handleEmit is not wrapped in try/catch.
+  const createErrorContext = createError([{ errorType: "ErrorType1" }] as const, {
+    handleEmit: () => {
+      throw new Error("boom from handleEmit");
+    },
+  });
+
+  const context = createErrorContext("Context");
+  const featureError = context.feature("Feature");
+  const err = featureError("ErrorType1", "msg");
+
+  assert.throws(
+    () => err.emit(),
+    (e: Error) => e.message === "boom from handleEmit",
+  );
+});
+
+test("cross-factory instances both pass isConwayError", () => {
+  // Errors produced by separate createError() calls share the internal ConwayError base class.
+  const factoryA = createError([{ errorType: "A" }] as const);
+  const factoryB = createError([{ errorType: "B" }] as const);
+
+  const errA = factoryA("CtxA").feature("FeatA")("A", "msg-a");
+  const errB = factoryB("CtxB").feature("FeatB")("B", "msg-b");
+
+  assert.equal(isConwayError(errA), true);
+  assert.equal(isConwayError(errB), true);
+  assert.instance(errA, Error);
+  assert.instance(errB, Error);
+
+  // Each call to createErrorClass produces a fresh subclass — instance constructors differ,
+  // but both are still ConwayError subclasses recognised by the type guard.
+  assert.is.not(errA.constructor, errB.constructor);
+});
+
+test("isConwayError rejects non-ConwayError values", () => {
+  assert.equal(isConwayError(undefined), false);
+  assert.equal(isConwayError({}), false);
+  assert.equal(isConwayError(Object.freeze({ name: "ErrorType1", message: "fake" })), false);
+  assert.equal(isConwayError(Symbol("err")), false);
+  assert.equal(isConwayError(() => {}), false);
+  assert.equal(isConwayError(new Date()), false);
+  assert.equal(isConwayError([]), false);
+  assert.equal(isConwayError(true), false);
+});
+
+test("error.extendedParams stores call-site slice only; handleEmit receives merged set", () => {
+  // Spec: error.extendedParams is the call-site annotation; the merged map is delivered via emit.
+  const mockedEmit = snoop((_err, _params) => {});
+
+  const createErrorContext = createError([{ errorType: "ErrorType1" }] as const, {
+    handleEmit: (err, params) => mockedEmit.fn(err, params),
+    extendedParams: { root: 1 },
+  });
+
+  const context = createErrorContext("Context", { ctx: 2 });
+  const subcontext = context.subcontext("Sub", { sub: 3 });
+  const featureError = subcontext.feature("Feature", { feat: 4 });
+
+  const err = featureError("ErrorType1", "msg", { extendedParams: { callSite: 5 } });
+
+  // Instance-side: only the call-site slice is preserved.
+  assert.equal(err.extendedParams, { callSite: 5 });
+
+  // Emit-side: full merged map is delivered.
+  err.emit();
+  assert.equal(
+    // @ts-ignore
+    mockedEmit.calls[0].arguments[1],
+    { root: 1, ctx: 2, sub: 3, feat: 4, callSite: 5 },
+  );
+});
+
+test("UnknownError fallback preserves rootContext, contextsChunk, and feature", () => {
+  const createErrorContext = createError([{ errorType: "Known" }] as const);
+  const root = createErrorContext("Root");
+  const sub1 = root.subcontext("L1");
+  const sub2 = sub1.subcontext("L2");
+  const featureError = sub2.feature("Feat");
+
+  try {
+    // @ts-expect-error — unknown errorType triggers UnknownError fallback
+    throw featureError("MissingType", "msg");
+  } catch (e) {
+    const err = e as IConwayError;
+    assert.is(err.name, "UnknownError");
+    assert.is(err.rootContext, "Root");
+    assert.is(err.contextsChunk, "Root/L1/L2");
+    assert.is(err.feature, "Feat");
+    assert.is(err.message, "Root/L1/L2/Feat: msg");
+  }
+});
+
+test("__brand is present on subcontexts and features at runtime", () => {
+  const createErrorContext = createError([{ errorType: "ErrorType1" }] as const);
+  const root = createErrorContext("Root");
+  const sub = root.subcontext("Sub");
+  const deepSub = sub.subcontext("Deep");
+  const feat = deepSub.feature("Feat");
+
+  assert.is((root as { __brand: string }).__brand, "Root");
+  assert.is((sub as { __brand: string }).__brand, "Root/Sub");
+  assert.is((deepSub as { __brand: string }).__brand, "Root/Sub/Deep");
+  assert.is((feat as unknown as { __brand: string }).__brand, "Root/Sub/Deep/Feat");
 });
 
 test.run();

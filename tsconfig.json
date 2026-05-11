@@ -8,6 +8,12 @@
   "allowSyntheticDefaultImports": true,
   "esModuleInterop": true,
   "noUncheckedIndexedAccess": true,
+  "useDefineForClassFields": true,
+  "exactOptionalPropertyTypes": true,
+  "noImplicitOverride": true,
+  "noPropertyAccessFromIndexSignature": true,
+  "noFallthroughCasesInSwitch": true,
+  "forceConsistentCasingInFileNames": true,
   "noEmit": true,
   "skipLibCheck": true
  },

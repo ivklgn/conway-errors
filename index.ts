@@ -2,27 +2,30 @@
  * Root interface for any specific error type.
  */
 export interface IConwayError extends Error {
-  rootContext: string;
-  contextsChunk: string;
-  feature: string;
-  originalError?: OriginalError;
-  extendedParams?: ExtendedParams;
+  readonly rootContext: string;
+  readonly contextsChunk: string;
+  readonly feature: string;
+  readonly originalError: OriginalError | undefined;
+  readonly extendedParams: ExtendedParams | undefined;
 
-  emit: EmitFn;
+  readonly emit: EmitFn;
 }
+
+const CONWAY_ERROR_BRAND: unique symbol = Symbol.for("conway-errors:brand");
 
 class ConwayError extends Error implements IConwayError {
   readonly rootContext: string;
   readonly contextsChunk: string;
-  readonly originalError?: OriginalError;
-  readonly extendedParams?: ExtendedParams;
-
-  feature = "";
+  readonly feature: string;
+  readonly originalError: OriginalError | undefined;
+  readonly extendedParams: ExtendedParams | undefined;
+  readonly emit: EmitFn;
 
   constructor(
     name: string,
     rootContext: string,
     contextsChunk: string,
+    feature: string,
     message: string,
     emit: EmitFn,
     originalError?: OriginalError,
@@ -32,15 +35,21 @@ class ConwayError extends Error implements IConwayError {
     this.name = name;
     this.rootContext = rootContext;
     this.contextsChunk = contextsChunk;
-    this.originalError = originalError;
+    this.feature = feature;
     this.emit = emit;
+    this.originalError = originalError;
     this.extendedParams = extendedParams;
+    Object.defineProperty(this, CONWAY_ERROR_BRAND, {
+      value: true,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+    Object.freeze(this);
   }
-
-  emit: EmitFn;
 }
 
-type EmitFn = (extendedParams?: ExtendedParams) => void;
+export type EmitFn = (extendedParams?: ExtendedParams) => void;
 
 /**
  * Type guard which helps to understand if error is Conway error.
@@ -48,19 +57,23 @@ type EmitFn = (extendedParams?: ExtendedParams) => void;
  * @return {boolean}
  */
 export function isConwayError(error: unknown): error is IConwayError {
-  return typeof error === "object" && error instanceof ConwayError;
+  return (
+    error instanceof Error &&
+    (error as unknown as Record<PropertyKey, unknown>)[CONWAY_ERROR_BRAND] === true
+  );
 }
 
 function createErrorClass(name: string, rootContext: string) {
   return class extends ConwayError {
     constructor(
       contextsChunk: string,
+      feature: string,
       message: string,
       emit: EmitFn,
       originalError?: OriginalError,
       extendedParams?: ExtendedParams
     ) {
-      super(name, rootContext, contextsChunk, message, emit, originalError, extendedParams);
+      super(name, rootContext, contextsChunk, feature, message, emit, originalError, extendedParams);
     }
   };
 }
@@ -73,11 +86,11 @@ function defaultHandleEmit(err: IConwayError) {
   console.error(err);
 }
 
-type ExtendedParams = Record<string, unknown>;
+export type ExtendedParams = Record<string, unknown>;
 
-type OriginalError = Error | Record<string, unknown> | unknown;
+type OriginalError = unknown;
 
-interface CreateErrorOptions {
+export interface CreateErrorOptions {
   handleEmit?: (err: IConwayError, extendedParams?: ExtendedParams) => void;
   extendedParams?: ExtendedParams;
 }
@@ -87,7 +100,7 @@ const defaultErrorOptions: CreateErrorOptions = {
   extendedParams: {},
 };
 
-type ErrorTypeConfig = ReadonlyArray<{
+export type ErrorTypeConfig = ReadonlyArray<{
   errorType: string;
   createMessagePostfix?: (originalError?: OriginalError) => string;
 }>;
@@ -100,7 +113,7 @@ type ErrorMap = Record<
   }
 >;
 
-type ErrorFnOptions = {
+export type ErrorFnOptions = {
   originalError?: OriginalError;
   extendedParams?: ExtendedParams;
 };
@@ -158,15 +171,16 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
   return <const ContextName extends string>(contextName: ContextName, extendedParams: ExtendedParams = {}) => {
     const outerExtendedParams = { ...initialExtendedParams, ...extendedParams };
 
-    const errorsMap: ErrorMap = Array.isArray(errorTypes)
-      ? errorTypes.reduce<ErrorMap>((acc, { errorType, createMessagePostfix }) => {
-          acc[errorType] = {
-            errorClass: createErrorClass(errorType, contextName),
-            createMessagePostfix,
-          };
-          return acc;
-        }, {})
-      : {};
+    const errorsMap: ErrorMap = (errorTypes ?? []).reduce<ErrorMap>(
+      (acc, { errorType, createMessagePostfix }) => {
+        acc[errorType] = {
+          errorClass: createErrorClass(errorType, contextName),
+          ...(createMessagePostfix !== undefined && { createMessagePostfix }),
+        };
+        return acc;
+      },
+      {}
+    );
 
     const UnknownError = createErrorClass("UnknownError", contextName);
 
@@ -209,8 +223,8 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
       ) => {
         const errorMapItem = errorsMap[errorType];
         const messagePostfix =
-          options?.originalError && errorMapItem?.createMessagePostfix
-            ? errorMapItem.createMessagePostfix(options?.originalError)
+          options?.originalError != null && errorMapItem?.createMessagePostfix
+            ? errorMapItem.createMessagePostfix(options.originalError)
             : "";
 
         const emit: EmitFn = (extendedParams = {}) => {
@@ -220,13 +234,12 @@ export function createError<ErrorTypes extends ErrorTypeConfig>(errorTypes?: Err
 
         const error = new (errorMapItem?.errorClass ?? UnknownError)(
           contextName,
+          featureName,
           createContextedMessage(contextName, featureName, message + messagePostfix),
           emit,
           options?.originalError,
           options?.extendedParams
         );
-
-        error.feature = featureName;
 
         return error;
       };

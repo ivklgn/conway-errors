@@ -1,13 +1,15 @@
 {
   "name": "conway-errors",
   "source": "index.ts",
-  "version": "3.2.1",
+  "version": "4.0.0",
   "private": false,
   "description": "A convenient primitive for creating, structing and throwing errors",
   "exports": {
-    "types": "./dist/index.d.ts",
-    "require": "./dist/index.js",
-    "default": "./dist/index.module.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.module.js",
+      "require": "./dist/index.js"
+    }
   },
   "main": "dist/index.js",
   "module": "dist/index.module.js",
@@ -21,11 +23,11 @@
     "type-check": "tsc --noEmit --p tsconfig.json",
     "build": "npm run clean && microbundle",
     "test": "ts-node index.test.ts",
-    "lint": "biome lint ./index.ts ./index.test.ts",
-    "lint:fix": "biome lint ./index.ts ./index.test.ts --fix",
-    "format": "biome format --write ./index.ts ./index.test.ts",
+    "lint": "biome lint ./index.ts ./index.test.ts ./index.test-d.ts",
+    "lint:fix": "biome lint ./index.ts ./index.test.ts ./index.test-d.ts --fix",
+    "format": "biome format --write ./index.ts ./index.test.ts ./index.test-d.ts",
     "clean": "rimraf dist",
-    "prepublishOnly": "npm run lint && npm run test && npm run build"
+    "prepublishOnly": "npm run type-check && npm run lint && npm run test && npm run build"
   },
   "files": [
     "/dist",
